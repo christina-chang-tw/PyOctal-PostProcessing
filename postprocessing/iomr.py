@@ -1,5 +1,21 @@
+"""
+iomr.py
+
+Convert iomr files into csv files.
+"""
+
+from os import path, listdir, makedirs
+from sys import argv
+from pathlib import Path
+import argparse
+
+import pandas as pd
+from tqdm import tqdm
 import win32com.client
 import numpy as np
+
+from postprocessing.utils.formatter import CustomArgparseFormatter
+
 
 class IOMRFileHandler:
     """
@@ -73,45 +89,45 @@ class IOMRGraphHandler:
 
     def properties(self, name: str):
         return self.graph.Property(name)
-    
+
     def process_xdata(self):
         xdata = self.graph.XData
         if not xdata:
             xdata = np.round(np.arange(self.xstart, self.xstop + self.xstep, self.xstep), 14)
         return xdata
-    
+
     @property
     def xdata(self):
         return self.process_xdata()
-    
+
     @property
     def ydata(self):
         return self.graph.YData
-    
+
     @property
     def xstart(self):
         return self.graph.xStart
-    
+
     @property
     def xstop(self):
         return self.graph.xStop
-    
+
     @property
     def xstep(self):
         return self.graph.xStep
-    
+
     @property
     def noChannels(self):
         return self.graph.noChannels
-    
+
     @property
     def noCurves(self):
         return self.graph.noCurves
-    
+
     @property
     def dataPerCurve(self):
         return self.graph.dataPerCurve
-    
+
 
 class IOMRPropertyHandler:
     def __init__(self, pty):
@@ -120,14 +136,14 @@ class IOMRPropertyHandler:
     # IOMR Property Handler
     def property_names(self):
         return self._property.PropertyNames
-    
+
     def properties(self, name: str):
         return self._property.Property(name)
 
     @property
     def value(self, name: str):
         return self._property[name].Value
-    
+
     @value.setter
     def value(self, name: str, value: float):
         self._property[name].Value = value
@@ -135,7 +151,7 @@ class IOMRPropertyHandler:
     @property
     def flag_info_pane(self, name: str):
         return self._property[name].FlagInfoPane
-    
+
     @flag_info_pane.setter
     def flag_info_pane(self, name: str, value: bool):
         self._property[name].FlagInfoPane = value
@@ -143,7 +159,67 @@ class IOMRPropertyHandler:
     @property
     def flag_hide(self, name: str):
         return self._property[name].FlagHide
-    
+
     @flag_hide.setter
     def flag_hide(self, name: str, value: bool):
         self._property[name].FlagHide = value
+
+
+def parse(args: str=None) -> dict[str,str]:
+    parser = argparse.ArgumentParser(
+        description="Convert .omr files to .csv files.",
+        formatter_class=CustomArgparseFormatter)
+    parser.add_argument(
+        "--input-dir",
+        metavar="",
+        nargs=1,
+        type=str,
+        help="The directory containing the .omr files.",
+        required=True,
+    )
+    parser.add_argument(
+        "--output-dir",
+        metavar="",
+        nargs=1,
+        type=str,
+        help="The directory where the .csv files will be saved.",
+        required=True,
+    )
+    parser.add_argument(
+        "--measurement",
+        dest="meas",
+        metavar="",
+        nargs=1,
+        type=str,
+        help="The measurement to be used.",
+        required=False,
+        default="RXTXAvgIL",
+    )
+
+    return parser.parse_args(args)
+
+def convert(args_list: dict):
+    """
+    Function to convert .omr files to .csv files.
+
+    Parameters:
+    args_list (str): A list of arguments to be parsed.
+    """
+    args = parse(args_list)
+
+    files = listdir(args.input_dir[0])
+    makedirs(args.output_dir[0], exist_ok=True)
+
+    omrfile = IOMRFileHandler()
+    for file in tqdm(files, total=len(files), desc="Converting files"):
+        if file.endswith('.omr'):
+            filepath = path.abspath(path.join(args.input_dir[0], file))
+
+            omrfile.read_omr(filepath)
+            graph = IOMRGraphHandler(omrfile.graph(args.meas))
+
+            output_filepath = path.join(args.output_dir[0], f"{Path(file).stem}.csv")
+            pd.DataFrame({"Wavelength": graph.xdata, "Loss [dB]": graph.ydata}).to_csv(output_filepath, index=False)
+
+if __name__ == "__main__":
+    convert(argv[1:])
