@@ -89,9 +89,6 @@ class PlotGraphs(object):
         ax = fig.add_axes([0.15,0.15,0.75,0.75])
         ax.set_title(title)
         ax.minorticks_on()
-        #ax.grid(True)
-        #ax.grid(which='major', color='#DDDDDD', linewidth=0.8)
-        #ax.grid(which='minor', color='#EEEEEE', linestyle=':', linewidth=0.5)
         
         return fig, ax
     
