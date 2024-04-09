@@ -1,7 +1,7 @@
 """
 s2p.py
 
-Deal with s2p files.
+Deal with s2p files from Keysight.
 """
 from pathlib import Path
 
