@@ -151,6 +151,55 @@ class PAnalysis:
         return self.resonance_freq()/self.fwhm()
 
 
+def get_modeff(wavelength: float, voltages: list, dneff: list):
+    """
+    This method calculate modulation efficiency based on the delta n
+
+    Parameters
+    ----------
+    wavelength: float
+        wavelength in m
+    voltages: list
+        list of voltages in V
+    dneff: list
+        list of delta neff
+    """
+    voltages = np.real(voltages)
+    return voltages, (voltages*wavelength)/(2*np.real(dneff))
+
+def get_loss(wavelength: float, voltages: list, dk: list):
+    """
+    This method calculate modulation efficiency based on the delta n
+
+    Parameters
+    ----------
+    wavelength: float
+        wavelength in m
+    voltages: list
+        list of voltages in V
+    dneff: list
+        list of delta neff
+    """
+    voltages = np.real(voltages)
+    return voltages, (40*np.pi*dk*np.log10(np.e)/(wavelength))*1e-02 # [dB/cm]
+    
+def get_modfrac(a: float, alpha: float, radius: float):
+    """
+    Get modulation fraction.
+
+    Parameters
+    ----------
+    a: float
+        Round trip loss
+    alpha: float
+        Loss per length [dB/cm]
+    radius: float
+        Radius of the ring [um]
+    """
+    length = -20*np.log10(a)/(alpha*10**2)
+    return length/(2*np.pi*radius)
+
+
 
 def main():
     filename = "output/Radius1_t17_3v.csv"
