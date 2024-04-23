@@ -170,17 +170,15 @@ def parse(args: str=None) -> dict[str,str]:
         description="Convert .omr files to .csv files.",
         formatter_class=CustomArgparseFormatter)
     parser.add_argument(
-        "--input-dir",
+        "--input",
         metavar="",
-        nargs=1,
         type=str,
         help="The directory containing the .omr files.",
         required=True,
     )
     parser.add_argument(
-        "--output-dir",
+        "--output",
         metavar="",
-        nargs=1,
         type=str,
         help="The directory where the .csv files will be saved.",
         required=True,
@@ -189,7 +187,6 @@ def parse(args: str=None) -> dict[str,str]:
         "--measurement",
         dest="meas",
         metavar="",
-        nargs=1,
         type=str,
         help="The measurement to be used.",
         required=False,
@@ -207,19 +204,20 @@ def convert(args_list: dict):
     """
     args = parse(args_list)
 
-    files = listdir(args.input_dir[0])
-    makedirs(args.output_dir[0], exist_ok=True)
+    files = listdir(args.input)
+    makedirs(args.output, exist_ok=True)
 
-    omrfile = IOMRFileHandler()
     for file in tqdm(files, total=len(files), desc="Converting files"):
+        omrfile = IOMRFileHandler()
         if file.endswith('.omr'):
-            filepath = path.abspath(path.join(args.input_dir[0], file))
+            filepath = path.abspath(path.join(args.input, file))
 
             omrfile.read_omr(filepath)
             graph = IOMRGraphHandler(omrfile.graph(args.meas))
 
-            output_filepath = path.join(args.output_dir[0], f"{Path(file).stem}.csv")
+            output_filepath = path.join(args.output, f"{Path(file).stem}.csv")
             pd.DataFrame({"Wavelength": graph.xdata, "Loss [dB]": graph.ydata}).to_csv(output_filepath, index=False)
+        omrfile.close()
 
 if __name__ == "__main__":
     convert(argv[1:])

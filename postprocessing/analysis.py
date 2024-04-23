@@ -30,6 +30,36 @@ class PAnalysis:
     def peaks(self):
         return self._peaks
 
+    @property
+    def target_peak_idx(self):
+        """ 
+        Get the index that is closest to the target wavelength in the peak. """
+        return np.argmin(np.abs(self._peaks - self.wavelength_idx))
+    
+    @property
+    def target_offres_idx(self):
+        """ 
+        Get the power maximum index that is closest to the target wavelength in the orriginal data. 
+        """
+        if self.target_resonance_idx < self.wavelength_idx:
+            return (self._peaks[self.target_peak_idx] + self._peaks[self.target_peak_idx + 1]) // 2
+
+        return (self._peaks[self.target_peak_idx] + self._peaks[self.target_peak_idx - 1]) // 2
+
+    @property
+    def target_resonance_idx(self):
+        """ 
+        Get the resonance index that is closest to the target wavelength in the orriginal data. 
+        """
+        return self._peaks[self.target_peak_idx]
+    
+    @property
+    def target_resonance_wavelength(self):
+        """ 
+        Get the resonance wavelength that is closest to the target wavelength in the orriginal data. 
+        """
+        return self.xdata[self.target_resonance_idx]
+
 
     def resonance_freq(self) -> float:
         """
