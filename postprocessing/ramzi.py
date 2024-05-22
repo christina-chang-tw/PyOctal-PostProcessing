@@ -1,4 +1,5 @@
 from os.path import join
+from os import listdir
 
 import numpy as np
 import pandas as pd
@@ -25,14 +26,18 @@ def get_voltage_against_power(data: dict, idx: int):
 def main():
 
     # Load the data
-    folder = r"2024-4-19-ring-assisted-mzi/2024-4-19-ring-assisted-mzi-csv"
-    voltages = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
+    folder = r"\\filestore.soton.ac.uk\users\tyc1g20\mydocuments\ring-assisted moscap\ring_mzi\voltage_sweep_result_22_04_24"
+    voltages = [0, 1, 2, 3, 4, 5, 6]
     target_wavelength = 1550e-09
+
+    files = listdir(folder)
+    print(files[:5])
 
     data = {}
 
     for voltage in voltages:
-        file = join(folder, f"ring{voltage}V_heat0.00V.csv")
+        file = join(folder, f"ring{voltage}_ph0.0V.csv")
+        print(file)
         df = pd.read_csv(file)
 
         ydata = df["Loss [dB]"]

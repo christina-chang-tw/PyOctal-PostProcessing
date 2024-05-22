@@ -7,6 +7,7 @@ Perform photonics simulation/experimental data analysis
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
 
 from scipy.signal import find_peaks
 
@@ -15,13 +16,13 @@ class PAnalysis:
     This is for performing analysis based on the transmission spectrum.
 
     Parameters:
-        xdata (np.ndarray): The x-axis data.
-        ydata (np.ndarray): The y-axis data.
+        xdata (np.ndarray): The x-axis data. [dB]
+        ydata (np.ndarray): The y-axis data. [dB] 
         wavelength (float): The wavelength of interest.  
     """
     def __init__(self, xdata: np.array, ydata: np.array, wavelength: float, cutoff: float=20, distance: int=100):
         self.xdata = xdata
-        self.ydata = ydata
+        self.ydata = np.absolute(ydata)
         self.wavelength = wavelength
         self.wavelength_idx = np.argmin(np.abs(self.xdata - self.wavelength))
         self._peaks = self.resonances(cutoff=cutoff, distance=distance)
@@ -146,6 +147,66 @@ class PAnalysis:
         
         return fsr/len(peaks_idx)
     
+    def linewidth(self) -> float:
+        """
+        Calculate the linewidth of the resonator.
+        Must provide linear scale ydata
+
+        Returns:
+            float: The linewidth of the resonator.
+        """
+        peaks = self._peaks
+        xdata = self.xdata
+        ydata = self.ydata
+
+        if len(peaks) > 1:
+            peaks = self._peaks_idx_for_averaging(3)
+            peak_midpoints = (peaks[:-1] + peaks[1:]) // 2
+            xdata = xdata[peak_midpoints[0]:peak_midpoints[-1]]
+            ydata = ydata[peak_midpoints[0]:peak_midpoints[-1]]
+            indices = np.where(ydata >= 3)[0] + peak_midpoints[0]
+        else:
+            indices = np.where(ydata >= 3)[0]
+
+        return xdata[indices[-1]] - xdata[indices[0]]
+
+    @staticmethod
+    def operating_region(xdata: np.array, ydata: np.array, level: float):
+        """
+        Calculate the operating wavelength region of the resonator.
+        Assume normalised data.
+
+        Parameters:
+            xdata (np.array): The x-axis data.
+            ydata (np.array): OMA and ER data.
+            level (float): The level of OMA to quantify as operating region.
+
+        Returns:
+            float: The operating wavelength of the resonator.
+        """
+        indices = np.where(ydata >= level)[0]
+        if indices.size == 0:
+            print("No operating region found.")
+            return 0, 0
+        mid = np.where(xdata == 0)[0][0]
+
+        right_indices = indices[indices < mid]
+        left_indices = indices[indices > mid]
+
+        right_or = xdata[right_indices[0]] - xdata[right_indices[-1]] if right_indices.size > 0 else 0
+        left_or = xdata[left_indices[0]] - xdata[left_indices[-1]] if left_indices.size > 0 else 0
+
+        return left_or, right_or
+    
+    @staticmethod
+    def fom_max(xdata: np.array, ydata: np.array, side: str):
+        """
+        FOM maximum assuming normalised data.
+        """
+        mid = np.where(xdata == 0)[0][0]
+        if side == "left":
+            return np.max(ydata[mid:])
+        return np.max(ydata[:mid])
 
     def fwhm(self) -> float:
         """
@@ -179,55 +240,81 @@ class PAnalysis:
             float: The quality factor of the resonator.
         """
         return self.resonance_freq()/self.fwhm()
-
-
-def get_modeff(wavelength: float, voltages: list, dneff: list):
-    """
-    This method calculate modulation efficiency based on the delta n
-
-    Parameters
-    ----------
-    wavelength: float
-        wavelength in m
-    voltages: list
-        list of voltages in V
-    dneff: list
-        list of delta neff
-    """
-    voltages = np.real(voltages)
-    return voltages, (voltages*wavelength)/(2*np.real(dneff))
-
-def get_loss(wavelength: float, voltages: list, dk: list):
-    """
-    This method calculate modulation efficiency based on the delta n
-
-    Parameters
-    ----------
-    wavelength: float
-        wavelength in m
-    voltages: list
-        list of voltages in V
-    dneff: list
-        list of delta neff
-    """
-    voltages = np.real(voltages)
-    return voltages, (40*np.pi*dk*np.log10(np.e)/(wavelength))*1e-02 # [dB/cm]
     
-def get_modfrac(a: float, alpha: float, radius: float):
-    """
-    Get modulation fraction.
+    @staticmethod
+    def total_capacitance(veff: np.array, vcap: np.array, eff: np.array, cap: np.array) -> np.array:
+        """
+        Calculate the total capacitance.
 
-    Parameters
-    ----------
-    a: float
-        Round trip loss
-    alpha: float
-        Loss per length [dB/cm]
-    radius: float
-        Radius of the ring [um]
-    """
-    length = -20*np.log10(a)/(alpha*10**2)
-    return length/(2*np.pi*radius)
+        Parameters:
+            veff (np.array): Modulation efficiency voltage.
+            vcap (np.array): Capacitance voltage.
+            eff (np.array): Modulation efficiency.
+            cap (np.array): Capacitance per length.
+
+        Returns:
+            np.array: The total capacitance.
+        """
+        voltages = np.concatenate((veff.flatten(), vcap.flatten()))
+        voltages = np.linspace(min(voltages), max(voltages), 150)
+        eff_func = interp1d(veff, eff, kind='linear', fill_value="extrapolate")
+        cap_func = interp1d(vcap, cap, kind='linear', fill_value="extrapolate")
+
+        total_cap = eff_func(voltages)*cap_func(voltages)/voltages
+
+        return voltages, total_cap
+
+
+    @staticmethod
+    def get_modeff(wavelength: float, voltages: list, dneff: list):
+        """
+        This method calculate modulation efficiency based on the delta n
+
+        Parameters
+        ----------
+        wavelength: float
+            wavelength in m
+        voltages: list
+            list of voltages in V
+        dneff: list
+            list of delta neff
+        """
+        voltages = np.real(voltages)
+        return voltages, (voltages*wavelength)/(2*np.real(dneff))
+
+    @staticmethod
+    def get_loss(wavelength: float, voltages: list, dk: list):
+        """
+        This method calculate modulation efficiency based on the delta n
+
+        Parameters
+        ----------
+        wavelength: float
+            wavelength in m
+        voltages: list
+            list of voltages in V
+        dneff: list
+            list of delta neff
+        """
+        voltages = np.real(voltages)
+        return voltages, (40*np.pi*dk*np.log10(np.e)/(wavelength))*1e-02 # [dB/cm]
+
+    @staticmethod
+    def get_modfrac(a: float, alpha: float, radius: float):
+        """
+        Get modulation fraction.
+
+        Parameters
+        ----------
+        a: float
+            Round trip loss
+        alpha: float
+            Loss per length [dB/cm]
+        radius: float
+            Radius of the ring [um]
+        """
+        length = -20*np.log10(a)/(alpha*10**2)
+        return length/(2*np.pi*radius)
 
 
 

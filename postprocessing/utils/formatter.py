@@ -27,22 +27,23 @@ class Publication:
     @staticmethod
     def set_basics():
         mpl.font_manager.FontProperties(fname=r"C:\Users\tyc1g20\Downloads\Helvetica_Font_Family\Helvetica 400.ttf")
-        legendsize = 6
-        small_font = 6
-        medium_font = 8
-        large_font = 10
+        default = 12
+        larger_font = 14
 
-        lines_width = 0.4
+        lines_width = 2
         spines_width = 0.5
         mpl.rcParams['pdf.fonttype'] = 42
         mpl.rcParams['ps.fonttype'] = 42
         mpl.rcParams['font.family'] = 'Helvetica'
-        mpl.rcParams['font.size'] = medium_font
+        mpl.rcParams['font.size'] = default
         mpl.rcParams['legend.frameon'] = False
-        mpl.rcParams['legend.fontsize'] = medium_font
+        mpl.rcParams['legend.handlelength'] = 1
+        mpl.rcParams['legend.fontsize'] = default
+        #change legend spacing
+        mpl.rcParams['legend.labelspacing'] = 0.3
         mpl.rcParams['lines.linewidth'] = lines_width
-        mpl.rcParams['axes.labelsize'] = medium_font
-        mpl.rcParams['axes.titlesize'] = large_font
+        mpl.rcParams['axes.labelsize'] = larger_font
+        mpl.rcParams['axes.titlesize'] = larger_font
         mpl.rcParams['axes.titleweight'] = "bold"
         mpl.rcParams['axes.xmargin'] = 0
         mpl.rcParams['axes.grid'] = False
@@ -50,13 +51,13 @@ class Publication:
         mpl.rcParams['grid.linewidth'] = 0.3
         mpl.rcParams['grid.color'] = 'D3D3D3'
         mpl.rcParams['axes.linewidth'] =spines_width
-        mpl.rcParams['ytick.labelsize'] = medium_font
+        mpl.rcParams['ytick.labelsize'] = default
         mpl.rcParams['ytick.major.size'] = 1
         mpl.rcParams['ytick.minor.size'] = 1
         mpl.rcParams['ytick.major.width'] = spines_width
         mpl.rcParams['ytick.direction'] = "in"
         mpl.rcParams['xtick.major.width'] = spines_width
-        mpl.rcParams['xtick.labelsize'] = medium_font
+        mpl.rcParams['xtick.labelsize'] = default
         mpl.rcParams['xtick.major.size'] = 1
         mpl.rcParams['xtick.minor.size'] = 1
         mpl.rcParams['xtick.direction'] = "in"
