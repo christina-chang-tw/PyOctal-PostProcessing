@@ -62,7 +62,7 @@ class PAnalysis:
         return self.xdata[self.target_resonance_idx]
 
 
-    def resonance_freq(self) -> float:
+    def closest_resonance(self) -> float:
         """
         Calculate the resonance frequency of the resonator.
 
@@ -108,9 +108,11 @@ class PAnalysis:
             list: The indices of the peaks.
         """
         peaks, _ = find_peaks(self.ydata, distance=distance)
+        print(peaks)
 
         # perform another filtering
         peaks = peaks[self.ydata[peaks] - min(self.ydata) > cutoff]
+        print(peaks)
 
         return peaks
    
@@ -139,13 +141,13 @@ class PAnalysis:
         """
         # find the closest peaks to the resonance wavelength
         peaks_idx = self._peaks_idx_for_averaging(5)
-
+        print(peaks_idx)
         # takes averaging
         fsr = 0
         for i in range(1, len(peaks_idx)):
             fsr += self.xdata[peaks_idx[i]] - self.xdata[peaks_idx[i-1]]
         
-        return fsr/len(peaks_idx)
+        return fsr/(len(peaks_idx)-1)
     
     def linewidth(self) -> float:
         """
@@ -239,8 +241,8 @@ class PAnalysis:
         Returns:
             float: The quality factor of the resonator.
         """
-        return self.resonance_freq()/self.fwhm()
-    
+        return self.closest_resonance()/self.fwhm()
+        
     @staticmethod
     def total_capacitance(veff: np.array, vcap: np.array, eff: np.array, cap: np.array) -> np.array:
         """
@@ -264,6 +266,45 @@ class PAnalysis:
 
         return voltages, total_cap
 
+    @staticmethod
+    def find_phase_shift(wavelength: np.array, df: pd.DataFrame, target: float) -> float:
+        """
+        Find the phase shift from the transmission spectrum.
+
+        Parameters:
+            wavelength (np.array): The wavelength data.
+            df (pd.DataFrame): The transmission spectrum data.
+            target (float): The target wavelength.
+
+        Returns:
+            float: The phase shift.
+        """
+        res_shift = []
+        fsr = 0
+        for _, val in df.items():
+            analysis = PAnalysis(wavelength, val, target, cutoff=5)
+            res = analysis.closest_resonance()
+            fsr += analysis.fsr()
+            if res_shift == []:
+                res_shift.append(0)
+                res_at_0v = res
+            else:
+                res_shift.append(res - res_at_0v)
+
+        # assume that the fsr
+        fsr = fsr/len(df.keys())
+
+        return 2*np.pi*np.array(res_shift)/fsr
+        
+
+
+    @staticmethod    
+    def er(self) -> float:
+        """
+        Only allow one trough and find the extinction ratio
+        """
+        return max(self.ydata) - min(self.ydata)
+        
 
     @staticmethod
     def get_modeff(wavelength: float, voltages: list, dneff: list):
