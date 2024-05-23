@@ -26,7 +26,10 @@ class Publication:
     """ Set the publication quality figure settings. """
     @staticmethod
     def set_basics():
-        mpl.font_manager.FontProperties(fname=r"C:\Users\tyc1g20\Downloads\Helvetica_Font_Family\Helvetica 400.ttf")
+        font_path = r"C:\Users\cchan\Downloads\helvetica-255\Helvetica.ttf"  # Your font path goes here
+        mpl.font_manager.fontManager.addfont(font_path)
+        prop = mpl.font_manager.FontProperties(fname=font_path)
+
         default = 12
         larger_font = 14
 
@@ -43,10 +46,9 @@ class Publication:
         mpl.rcParams['legend.labelspacing'] = 0.3
         mpl.rcParams['lines.linewidth'] = lines_width
         mpl.rcParams['axes.labelsize'] = larger_font
-        mpl.rcParams['axes.titlesize'] = larger_font
-        mpl.rcParams['axes.titleweight'] = "bold"
+        mpl.rcParams['axes.titlesize'] = larger_font + 4
         mpl.rcParams['axes.xmargin'] = 0
-        mpl.rcParams['axes.grid'] = False
+        mpl.rcParams['axes.grid'] = True
         mpl.rcParams['axes.grid.which'] = 'both'
         mpl.rcParams['grid.linewidth'] = 0.3
         mpl.rcParams['grid.color'] = 'D3D3D3'

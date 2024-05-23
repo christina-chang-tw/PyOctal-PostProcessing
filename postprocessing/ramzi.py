@@ -6,10 +6,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from postprocessing.analysis import PAnalysis
+from postprocessing.utils.util import averaging
 
 def get_voltage_against_power(data: dict, idx: int):
     """
-    Calculate the absorption at the ring level one.
+    Calculate power at specified wavelength.
 
     Parameters:
         data: A list of ydata values
@@ -26,8 +27,9 @@ def get_voltage_against_power(data: dict, idx: int):
 def main():
 
     # Load the data
-    folder = r"\\filestore.soton.ac.uk\users\tyc1g20\mydocuments\ring-assisted moscap\ring_mzi\voltage_sweep_result_22_04_24"
-    voltages = [0, 1, 2, 3, 4, 5, 6]
+    folder = r"2024-4-19-ring-assisted-mzi/2024-4-19-ring-assisted-mzi-csv"
+    voltages = np.arange(0, 1.5, 0.01)
+    ring_vs = np.arange(0, 3.5, 0.5)
     target_wavelength = 1550e-09
 
     files = listdir(folder)
@@ -35,22 +37,27 @@ def main():
 
     data = {}
 
-    for voltage in voltages:
-        file = join(folder, f"ring{voltage}_ph0.0V.csv")
-        print(file)
-        df = pd.read_csv(file)
+    fig, ax = plt.subplots(1, 1)
 
-        ydata = df["Loss [dB]"]
+    for ring_v in ring_vs:
+        for volt in voltages:
+            file = join(folder, f"ring{ring_v:.1f}V_heat{volt:.2f}V.csv")
+            df = pd.read_csv(file)
 
-        if voltage == voltages[0]:
-            xdata = df["Wavelength"]
-            analysis = PAnalysis(xdata, ydata, target_wavelength, cutoff=10, distance=100)
-            index = analysis.target_resonance_idx
+            ydata = df["Loss [dB]"]
 
-        data[voltage] = - ydata
+            if volt == voltages[0]:
+                xdata = df["Wavelength"]
+                analysis = PAnalysis(xdata, ydata, target_wavelength, cutoff=10, distance=100)
+                index = analysis.target_resonance_idx
 
-    voltages, powers = get_voltage_against_power(data, index)
-    plt.plot(voltages, powers)
+            data[volt] = - ydata
+
+        vs, powers = get_voltage_against_power(data, index)
+        ax.plot(vs, averaging(powers, 5), label=f"Ring {ring_v:.1f}V", linestyle="--")
+        # ax.plot(vs, powers, label=f"Ring {ring_v:.1f}V")
+    
+    ax.legend()
     plt.show()
 
 if __name__ == "__main__":

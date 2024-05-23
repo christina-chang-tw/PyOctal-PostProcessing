@@ -225,7 +225,7 @@ class PAnalysis:
 
         xdata = self.xdata[peak_midpoints[0]:peak_midpoints[-1]]
         ydata = ydata[peak_midpoints[0]:peak_midpoints[-1]]
-        half_indices = np.where(np.isclose(ydata, 0.5, atol=tol))[0]
+        half_indices = np.where(np.isclose(ydata, 0.5, atol=tol))[0] + peak_midpoints[0]
 
         fwhm = xdata[half_indices[-1]] - xdata[half_indices[0]]
 
