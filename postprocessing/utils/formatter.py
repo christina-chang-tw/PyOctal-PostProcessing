@@ -72,10 +72,6 @@ class Publication:
         mpl.rcParams['scatter.marker'] = 'x'
         mpl.rcParams['lines.markersize'] = 5
 
-<<<<<<< Updated upstream
-        # ax.ticklabel_format(useOffset=False, style='plain') in rcparams
-        mpl.rcParams['axes.formatter.useoffset'] = False
-=======
     @staticmethod
     def twin_x(ax):
         ax2 = ax.twinx()
@@ -92,7 +88,6 @@ class Publication:
         ax2.tick_params(axis='y', colors='C1')
         return ax, ax2
 
->>>>>>> Stashed changes
         
     @staticmethod
     def twin_x(ax):

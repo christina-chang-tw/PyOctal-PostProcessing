@@ -4,12 +4,9 @@ import pandas as pd
 import numpy as np
 import re
 
-<<<<<<< Updated upstream
 from postprocessing.iomr import IOMRFileHandler, IOMRGraphHandler
-=======
 import scipy.io as sio
 import h5py
->>>>>>> Stashed changes
 
 class Parser:
 
@@ -86,20 +83,6 @@ class Parser:
             return data
         except NotImplementedError:
             file = h5py.File(filename,'r')
-            data = {}
-
-<<<<<<< Updated upstream
-    def iomr_parse(filename: Path, meas: str="RXTXAvgIL"):
-        # Currently only implement one method
-
-        omrfile = IOMRFileHandler()
-        filepath = filename.resolve()
-
-        omrfile.read_omr(filepath)
-        graph = IOMRGraphHandler(omrfile.graph(meas))
-
-        return pd.DataFrame({"Wavelength": graph.xdata, "Loss [dB]": graph.ydata})
-=======
             def h5py_dataset_iterator(g, prefix=''):
                 for key, item in g.items():
                     path = f'{prefix}.{key}' if prefix else key
@@ -114,6 +97,25 @@ class Parser:
 
             return data
 
+    def iomr_parse(filename: Path, meas: str="RXTXAvgIL"):
+        # Currently only implement one method
+
+        omrfile = IOMRFileHandler()
+        filepath = filename.resolve()
+
+        # check if the file with a suffix of .csv exists
+        csv_filename = filepath.with_suffix(".csv")
+        if csv_filename.exists():
+            return pd.read_csv(csv_filename)
+
+        omrfile.read_omr(filepath)
+        graph = IOMRGraphHandler(omrfile.graph(meas))
+
+        df = pd.DataFrame({"Wavelength": graph.xdata, "Loss [dB]": graph.ydata})
+        # speed up the process by converting to csv
+        df.to_csv(csv_filename, index=False)
+        return df
+    
 
 def main():
     filename = Path(r"\\filestore.soton.ac.uk\users\tyc1g20\mydocuments\ring-assisted moscap\ring_mzi\investigate_coeffs\single_ring_16um_0.8.mat")
@@ -122,4 +124,3 @@ def main():
 
 if __name__ == "__main__":
     main()
->>>>>>> Stashed changes

@@ -145,15 +145,9 @@ class PAnalysis:
             list: The indices of the peaks.
         """
         peaks, _ = find_peaks(self.ydata, distance=distance)
-<<<<<<< Updated upstream
 
         # perform another filtering
         peaks = peaks[self.ydata[peaks] - min(self.ydata) > cutoff]
-=======
-        # perform another filtering
-        peaks = peaks[self.ydata[peaks] - min(self.ydata) > cutoff]
-
->>>>>>> Stashed changes
         return peaks
    
     def _peaks_idx_for_averaging(self, num: int) -> list:

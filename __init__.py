@@ -6,9 +6,6 @@ postprocessing of the data collected from experiments or simulations.
 """
 from argparse import ArgumentParser
 
-from postprocessing.iomr import convert
-from postprocessing.plot.plot import plot
-
 def main():
     parser = ArgumentParser(description="Postprocessing")
 
