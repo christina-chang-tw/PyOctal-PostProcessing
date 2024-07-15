@@ -92,8 +92,9 @@ class IOMRGraphHandler:
 
     def process_xdata(self):
         xdata = self.graph.XData
+        num = len(self.ydata)
         if not xdata:
-            xdata = np.round(np.arange(self.xstart, self.xstop + self.xstep, self.xstep), 14)
+            xdata = np.round(np.linspace(self.xstart, self.xstop, num), 14)
         return xdata
 
     @property

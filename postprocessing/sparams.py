@@ -1,4 +1,4 @@
-from os.path import splitext, basename
+from os.path import splitext
 
 from PyLTSpice import SimRunner, SpiceEditor, LTspice, RawRead
 from scipy.optimize import curve_fit, least_squares

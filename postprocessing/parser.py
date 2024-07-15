@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 import re
 
+from postprocessing.iomr import IOMRFileHandler, IOMRGraphHandler
+
 class Parser:
 
     @staticmethod
@@ -26,6 +28,9 @@ class Parser:
         content = pd.read_csv(filename, skiprows=1, header=None, delimiter=",", names=names)
         if "freq" in names:
             content["freq"] = content["freq"].apply(lambda x: Parser.__convert_freq(x))
+
+        content = content.dropna(subset=["freq"]).reset_index(drop=True)
+        content = content.apply(lambda x: pd.to_numeric(x, errors="ignore"), axis=1)
         return content
 
     @staticmethod
@@ -34,7 +39,8 @@ class Parser:
             lines = file.readlines()
 
         content = dict()
-        labels = lines[1].split(",;")
+        labels = lines[1].lstrip(";").rstrip("\n").split(",;")
+        print(labels)
         df = pd.DataFrame([data.split(",") for data in lines[6:]], dtype=float)
         for idx, label in enumerate(labels):
             content[label] = np.round((df[idx*2], df[idx*2+1]), 9)
@@ -68,3 +74,13 @@ class Parser:
 
         return df
 
+    def iomr_parse(filename: Path, meas: str="RXTXAvgIL"):
+        # Currently only implement one method
+
+        omrfile = IOMRFileHandler()
+        filepath = filename.resolve()
+
+        omrfile.read_omr(filepath)
+        graph = IOMRGraphHandler(omrfile.graph(meas))
+
+        return pd.DataFrame({"Wavelength": graph.xdata, "Loss [dB]": graph.ydata})

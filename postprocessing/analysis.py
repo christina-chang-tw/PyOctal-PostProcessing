@@ -27,6 +27,19 @@ class PAnalysis:
         self.wavelength_idx = np.argmin(np.abs(self.xdata - self.wavelength))
         self._peaks = self.resonances(cutoff=cutoff, distance=distance)
 
+    def sanity_check(self, xlim: list=None, ylim: list=None):
+        """
+        Check your human brain sanity.
+        """
+        plt.clf()
+        plt.plot(self.xdata*1E+09, 10**(-self.ydata/10))
+        # plt.scatter(self.xdata[self._peaks]*1E+09, self.ydata[self._peaks], marker="x")
+        plt.xlabel("Wavelength [nm]")
+        plt.ylabel("Transmission [dB]")
+        # plt.xlim(xlim)
+        # plt.ylim(ylim)
+        plt.show()
+
     @property
     def peaks(self):
         return self._peaks
@@ -61,6 +74,20 @@ class PAnalysis:
         """
         return self.xdata[self.target_resonance_idx]
 
+    def get_range_idx(self, xrange: int=1E-09):
+        """
+        Get the range of the data closest to the resonance peak that is closest to the target
+        wavelength. Return two indices that correspond to the range which encloses one peak.
+        idx_low corresponds to lower frequency/higher wavelength.
+
+        Parameters:
+            range (int): The range of the data to be considered. int=1 means 1nm range.
+        """
+        res = self.closest_resonance()
+        idx_min = np.argmin(np.abs(self.xdata - (res - xrange/2)))
+        idx_max = np.argmin(np.abs(self.xdata - (res + xrange/2)))
+
+        return idx_min, idx_max
 
     def closest_resonance(self) -> float:
         """
@@ -71,6 +98,16 @@ class PAnalysis:
         """
         target_idx = np.argmin(np.abs(self._peaks - self.wavelength_idx))
         return self.xdata[self._peaks[target_idx]]
+    
+    def closest_resonance_idx(self) -> float:
+        """
+        Calculate the resonance frequency of the resonator.
+
+        Returns:
+            float: The resonance frequency closest to the target wavelength.
+        """
+        target_idx = np.argmin(np.abs(self._peaks - self.wavelength_idx))
+        return self._peaks[target_idx]
 
 
     def centering(self, idx: int) -> np.ndarray:
@@ -108,12 +145,9 @@ class PAnalysis:
             list: The indices of the peaks.
         """
         peaks, _ = find_peaks(self.ydata, distance=distance)
-        print(peaks)
 
         # perform another filtering
         peaks = peaks[self.ydata[peaks] - min(self.ydata) > cutoff]
-        print(peaks)
-
         return peaks
    
     def _peaks_idx_for_averaging(self, num: int) -> list:
@@ -126,12 +160,15 @@ class PAnalysis:
         Returns:
             list: The indices of the peaks for averaging.
         """
+        if num >= len(self.peaks):
+            return self.peaks
+
         target_idx = np.argmin(np.abs(self.peaks - self.wavelength_idx))
         peaks_for_avg = self.peaks[target_idx-num//2:target_idx+1+num//2]
 
         return peaks_for_avg
 
-    def fsr(self) -> float:
+    def fsr(self, num_peaks: int=3) -> float:
         """
         Calculate the free spectral range of the resonator.
 
@@ -140,8 +177,11 @@ class PAnalysis:
             float: The free spectral range of the resonator.
         """
         # find the closest peaks to the resonance wavelength
-        peaks_idx = self._peaks_idx_for_averaging(5)
-        print(peaks_idx)
+        if num_peaks < 2:
+            raise ValueError("Number of peaks for averaging must be greater than 1.")
+        
+        peaks_idx = self._peaks_idx_for_averaging(num_peaks)
+
         # takes averaging
         fsr = 0
         for i in range(1, len(peaks_idx)):
@@ -172,6 +212,50 @@ class PAnalysis:
 
         return xdata[indices[-1]] - xdata[indices[0]]
 
+
+    @staticmethod
+    def oma(
+        xdata: np.array, 
+        ydata0: np.array, 
+        ydata1: np.array,
+        target_wavelength: float,
+        normalised: bool=True
+    ) -> tuple:
+        """
+        Calculate the optical modulation amplitude.
+
+        Parameters:
+            xdata (np.array): The x-axis data.
+            ydata0 (np.array): The first y-axis data. Assume the data will be in dB form.
+            ydata1 (np.array): The second y-axis data. Assume the data will be in dB form.
+
+        Returns:
+            float: The optical modulation amplitude.
+        """
+        # normalise before performing other operations
+        peaks0 = find_peaks(ydata0, distance=100)[0]
+        peaks0 = peaks0[ydata0[peaks0] - min(ydata0) > 8]
+        
+        peaks1 = find_peaks(ydata1, distance=100)[0]
+        peaks1 = peaks1[ydata1[peaks1] - min(ydata1) > 8]
+        # plt.clf()
+        # plt.plot(xdata, ydata1)
+        # plt.scatter(xdata[peaks1], ydata1[peaks1])
+        # plt.show()
+        target_idx = np.argmin(np.abs(xdata - target_wavelength))
+        idx_max = peaks0[np.argmin(np.abs(peaks0 - target_idx))]
+        idx_min = peaks1[np.argmin(np.abs(peaks1 - target_idx))]
+
+        ydata0 = 10**(-(ydata0 - min(ydata0)) / 10)
+        ydata1 = 10**(-(ydata1 - min(ydata1))/ 10)
+        oma = np.absolute(ydata0 - ydata1)
+
+        if normalised:
+            min_idx0 = np.argmin(oma[idx_min:idx_max])
+            xdata = xdata - xdata[idx_min + min_idx0]
+
+        return xdata, oma
+
     @staticmethod
     def operating_region(xdata: np.array, ydata: np.array, level: float):
         """
@@ -187,10 +271,12 @@ class PAnalysis:
             float: The operating wavelength of the resonator.
         """
         indices = np.where(ydata >= level)[0]
+        
         if indices.size == 0:
             print("No operating region found.")
             return 0, 0
         mid = np.where(xdata == 0)[0][0]
+
 
         right_indices = indices[indices < mid]
         left_indices = indices[indices > mid]
@@ -198,7 +284,10 @@ class PAnalysis:
         right_or = xdata[right_indices[0]] - xdata[right_indices[-1]] if right_indices.size > 0 else 0
         left_or = xdata[left_indices[0]] - xdata[left_indices[-1]] if left_indices.size > 0 else 0
 
-        return left_or, right_or
+        print(right_indices[0], right_indices[-1])
+        # print(left_indices[0], left_indices[-1])
+
+        return np.absolute(left_or), np.absolute(right_or)
     
     @staticmethod
     def fom_max(xdata: np.array, ydata: np.array, side: str):
@@ -307,7 +396,7 @@ class PAnalysis:
         
 
     @staticmethod
-    def get_modeff(wavelength: float, voltages: list, dneff: list):
+    def get_modeff_from_dneff(wavelength: float, voltages: list, dneff: list):
         """
         This method calculate modulation efficiency based on the delta n
 
@@ -322,6 +411,37 @@ class PAnalysis:
         """
         voltages = np.real(voltages)
         return voltages, (voltages*wavelength)/(2*np.real(dneff))
+    
+    @staticmethod
+    def get_modeff_from_rshift(voltages: list, rshift: list, fsr: list, length: float):
+        """
+        This method calculate modulation efficiency based on the resonance shift
+
+        Parameters
+        ----------
+        wavelength: float
+            wavelength in m
+        voltages: list
+            list of voltages in V
+        dneff: list
+            list of delta neff
+        """
+        dphi_dv = np.absolute(2*np.pi*rshift/fsr)/voltages
+        modeff = (length*np.pi)/dphi_dv
+        return modeff
+    
+    def get_phase_shift_from_rshift(rshift: list, fsr: list):
+        """
+        This method calculate phase shift based on the resonance shift
+
+        Parameters
+        ----------
+        rshift: list
+            list of resonance shift
+        fsr: list
+            list of free spectral range
+        """
+        return 2*np.pi*rshift/fsr
 
     @staticmethod
     def get_loss(wavelength: float, voltages: list, dk: list):
@@ -357,6 +477,20 @@ class PAnalysis:
         length = -20*np.log10(a)/(alpha*10**2)
         return length/(2*np.pi*radius)
 
+    def get_loss_from_a(a: list, length: float):
+        """
+        Get loss from a.
+
+        Parameters
+        ----------
+        a: list
+            List of round trip loss
+
+        a**2 = exp(-alpha*length)
+        """
+        a_db = 20*np.log10(np.array(a)) # converting a to db
+        alpha_db = -a_db/(10*np.log10(np.e)*length)
+        return alpha_db
 
 
 def main():
