@@ -28,9 +28,9 @@ class Publication:
     """ Set the publication quality figure settings. """
     @staticmethod
     def set_basics():
-        font_path = r"C:\Users\cchan\Downloads\helvetica-255\Helvetica.ttf"  # Your font path goes here
-        mpl.font_manager.fontManager.addfont(font_path)
-        prop = mpl.font_manager.FontProperties(fname=font_path)
+        # font_path = r"C:\Users\cchan\Downloads\helvetica-255\Helvetica.ttf"  # Your font path goes here
+        # mpl.font_manager.fontManager.addfont(font_path)
+        # prop = mpl.font_manager.FontProperties(fname=font_path)
 
         default = 12
         larger_font = 14
@@ -72,8 +72,27 @@ class Publication:
         mpl.rcParams['scatter.marker'] = 'x'
         mpl.rcParams['lines.markersize'] = 5
 
+<<<<<<< Updated upstream
         # ax.ticklabel_format(useOffset=False, style='plain') in rcparams
         mpl.rcParams['axes.formatter.useoffset'] = False
+=======
+    @staticmethod
+    def twin_x(ax):
+        ax2 = ax.twinx()
+        ax.spines['left'].set_color('C0')
+        ax.spines['right'].set_color('C1')
+        ax.yaxis.label.set_color('C0')
+        ax.yaxis.label.set_color('C0')
+        ax.tick_params(axis='y', colors='C0')
+
+        ax2.spines['left'].set_color('C0')
+        ax2.spines['right'].set_color('C1')
+        ax2.yaxis.label.set_color('C1')
+        ax2.yaxis.label.set_color('C1')
+        ax2.tick_params(axis='y', colors='C1')
+        return ax, ax2
+
+>>>>>>> Stashed changes
         
     @staticmethod
     def twin_x(ax):

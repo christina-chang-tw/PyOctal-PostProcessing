@@ -4,7 +4,12 @@ import pandas as pd
 import numpy as np
 import re
 
+<<<<<<< Updated upstream
 from postprocessing.iomr import IOMRFileHandler, IOMRGraphHandler
+=======
+import scipy.io as sio
+import h5py
+>>>>>>> Stashed changes
 
 class Parser:
 
@@ -73,7 +78,17 @@ class Parser:
         df.drop(columns=[i for i in df.columns if isinstance(i, int)], inplace=True)
 
         return df
+    
+    @staticmethod
+    def matlab_parse(filename: Path):
+        try:
+            data = sio.loadmat(filename)
+            return data
+        except NotImplementedError:
+            file = h5py.File(filename,'r')
+            data = {}
 
+<<<<<<< Updated upstream
     def iomr_parse(filename: Path, meas: str="RXTXAvgIL"):
         # Currently only implement one method
 
@@ -84,3 +99,27 @@ class Parser:
         graph = IOMRGraphHandler(omrfile.graph(meas))
 
         return pd.DataFrame({"Wavelength": graph.xdata, "Loss [dB]": graph.ydata})
+=======
+            def h5py_dataset_iterator(g, prefix=''):
+                for key, item in g.items():
+                    path = f'{prefix}.{key}' if prefix else key
+                    if isinstance(item, h5py.Dataset):
+                        item = np.squeeze(item)
+                        yield (path, item)
+                    elif isinstance(item, h5py.Group):
+                        yield from h5py_dataset_iterator(item, path)
+            
+            for path, dset in h5py_dataset_iterator(file):
+                data[path] = dset[()]
+
+            return data
+
+
+def main():
+    filename = Path(r"\\filestore.soton.ac.uk\users\tyc1g20\mydocuments\ring-assisted moscap\ring_mzi\investigate_coeffs\single_ring_16um_0.8.mat")
+    data = Parser.matlab_parse(filename)
+    
+
+if __name__ == "__main__":
+    main()
+>>>>>>> Stashed changes
