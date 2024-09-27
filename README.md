@@ -12,3 +12,8 @@ Post-processing simulation and measurement data of photonic data. It features fu
 ├── requirements.txt         # contain all required python packages for this repository
 ```
 
+To run the files, run them as a module:
+```python
+# example
+python -m tools.exp.heater
+```
