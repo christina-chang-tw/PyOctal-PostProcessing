@@ -1,15 +1,163 @@
 from pathlib import Path
+import re
+from typing import Dict
 
 import pandas as pd
 import numpy as np
-import re
-
-from postprocessing.iomr import IOMRFileHandler, IOMRGraphHandler
+import win32com.client
 import scipy.io as sio
 import h5py
 
-class Parser:
+class IOMRFileHandler:
+    """
+    Optical Measurement Result (OMR) File Handler
+    """
+    def __init__(self):
+        self._engine = win32com.client.Dispatch('AgServerOMRFileHandler.OMRFile')
 
+    @property
+    def engine(self):
+        return self._engine
+    
+    @engine.setter
+    def engine(self, engine):
+        self._engine = engine
+
+    @property
+    def figure(self):
+        return self._figure
+    
+    @figure.setter
+    def figure(self, figure):
+        self._figure = figure
+
+    # IOMR File Handler
+    def properties(self, name: str):
+        return self.engine.Property(name)
+    
+    def graph_names(self):
+        return self.engine.GraphNames
+    
+    def graph(self, name: str):
+        return self.engine.Graph(name)
+    
+    def plugins(self):
+        return self.engine.Plugins
+    
+    def plugin(self, name: str):
+        self._plugin = self.engine.Plugin(name)
+        return self._plugin
+    
+    def write_omr(self, filename: str):
+        self.engine.Write(filename)
+
+    def read_omr(self, filename: str):
+        self.engine.OpenRead(filename)
+
+    def close(self):
+        self.engine.Close()
+
+    # IOMR Property Handler
+    def is_file_compatible(self, graph: str):
+        return self._plugin.IsFileCompatible(graph)
+    
+    def plugin_evaluate(self, name: str):
+        return self._plugin.Evaluate(name)
+    
+    @property
+    def settings_xml(self):
+        return self._plugin.SettingsXML
+    
+    @settings_xml.setter
+    def settings_xml(self, value: str):
+        self._plugin.SettingsXML = value
+
+
+class IOMRGraphHandler:
+    # IOMR Graph Handler
+    def __init__(self, graph):
+        self.graph = graph
+
+    def properties(self, name: str):
+        return self.graph.Property(name)
+
+    def process_xdata(self):
+        xdata = self.graph.XData
+        num = len(self.ydata)
+        if not xdata:
+            xdata = np.round(np.linspace(self.xstart, self.xstop, num), 14)
+        return xdata
+
+    @property
+    def xdata(self):
+        return self.process_xdata()
+
+    @property
+    def ydata(self):
+        return self.graph.YData
+
+    @property
+    def xstart(self):
+        return self.graph.xStart
+
+    @property
+    def xstop(self):
+        return self.graph.xStop
+
+    @property
+    def xstep(self):
+        return self.graph.xStep
+
+    @property
+    def noChannels(self):
+        return self.graph.noChannels
+
+    @property
+    def noCurves(self):
+        return self.graph.noCurves
+
+    @property
+    def dataPerCurve(self):
+        return self.graph.dataPerCurve
+
+
+class IOMRPropertyHandler:
+    def __init__(self, pty):
+        self._property = pty
+
+    # IOMR Property Handler
+    def property_names(self):
+        return self._property.PropertyNames
+
+    def properties(self, name: str):
+        return self._property.Property(name)
+
+    @property
+    def value(self, name: str):
+        return self._property[name].Value
+
+    @value.setter
+    def value(self, name: str, value: float):
+        self._property[name].Value = value
+
+    @property
+    def flag_info_pane(self, name: str):
+        return self._property[name].FlagInfoPane
+
+    @flag_info_pane.setter
+    def flag_info_pane(self, name: str, value: bool):
+        self._property[name].FlagInfoPane = value
+
+    @property
+    def flag_hide(self, name: str):
+        return self._property[name].FlagHide
+
+    @flag_hide.setter
+    def flag_hide(self, name: str, value: bool):
+        self._property[name].FlagHide = value
+
+
+class Parser:
     @staticmethod
     def __convert_freq(data):
         if "GHz" in data:
@@ -20,7 +168,13 @@ class Parser:
             return float(data.strip(" kHz"))*1e3
 
     @staticmethod
-    def ads_parse(filename: Path):
+    def ads_parse(filename: Path) -> pd.DataFrame:
+        """
+        Keysight ADS file parser.
+        
+        Parameters:
+            filename (Path): The path to the .csv file exported from ADS
+        """
         with open(filename, "r", encoding="utf-8") as file:
             lines = file.readlines()[:2]
         ind_var = lines[0].strip("\n\"")
@@ -36,7 +190,13 @@ class Parser:
         return content
 
     @staticmethod
-    def vcsv_parse(filename: Path):
+    def vcsv_parse(filename: Path) -> pd.DataFrame:
+        """
+        Cadence virtuoso csv parser.
+        
+        Parameters:
+            filename (Path): The path to the csv file.
+        """
         with open(filename, "r", encoding="utf-8") as file:
             lines = file.readlines()
 
@@ -50,7 +210,14 @@ class Parser:
         return content
     
     @staticmethod
-    def snp_parse(filename: Path, fmt: str="dB"):
+    def snp_parse(filename: Path, fmt: str="dB") -> pd.DataFrame:
+        """
+        Keysight S-parameter parser.
+        
+        Parameters:
+            filename (Path): The path to the s-parameter file.
+            fmt (str): The format of the s-parameter file. Default is "dB".
+        """
         with open(filename, "r", encoding="utf-8") as file:
             raw_data = file.readlines()
         port = int(filename.suffix[2])
@@ -77,7 +244,13 @@ class Parser:
         return df
     
     @staticmethod
-    def matlab_parse(filename: Path):
+    def matlab_parse(filename: Path) -> Dict:
+        """
+        Matlab data parser.
+        
+        Parameters:
+            filename (Path): The path to the .mat file.
+        """
         try:
             data = sio.loadmat(filename)
             return data
@@ -92,28 +265,36 @@ class Parser:
                     elif isinstance(item, h5py.Group):
                         yield from h5py_dataset_iterator(item, path)
             
+            data = {}
             for path, dset in h5py_dataset_iterator(file):
                 data[path] = dset[()]
 
             return data
 
-    def iomr_parse(filename: Path, meas: str="RXTXAvgIL"):
+    def omr_parse(filename: Path, meas: str="RXTXAvgIL", convert_to_csv: bool=False) -> pd.DataFrame:
+        """
+        Keysight PAS file parser:
+        
+        Parameters:
+            filename (Path): The path to the .pas file.
+            meas (str): The measurement type. Default is "RXTXAvgIL".
+        """
         # Currently only implement one method
 
-        omrfile = IOMRFileHandler()
-        filepath = filename.resolve()
-
         # check if the file with a suffix of .csv exists
-        csv_filename = filepath.with_suffix(".csv")
+        csv_filename = filename.with_suffix(".csv")
         if csv_filename.exists():
             return pd.read_csv(csv_filename)
 
+        omrfile = IOMRFileHandler()
+        filepath = filename.resolve()
         omrfile.read_omr(filepath)
         graph = IOMRGraphHandler(omrfile.graph(meas))
 
         df = pd.DataFrame({"Wavelength": graph.xdata, "Loss [dB]": graph.ydata})
         # speed up the process by converting to csv
-        df.to_csv(csv_filename, index=False)
+        if convert_to_csv:
+            df.to_csv(csv_filename, index=False)
         return df
     
 

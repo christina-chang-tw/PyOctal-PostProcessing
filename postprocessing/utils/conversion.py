@@ -12,3 +12,6 @@ def a_to_db_alpha(a, length):
     """
     alpha_linear = -2/length*np.log(a)
     return 10*np.log10(alpha_linear)
+
+def db2w(val: float):
+    return np.power(10, val/10)

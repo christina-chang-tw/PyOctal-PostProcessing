@@ -2,29 +2,6 @@ import numpy as np
 import pandas as pd
 from scipy.signal import butter, filtfilt, savgol_filter
 
-class DictObj:
-    """ Convert a dictionary to python object """
-    def __init__(self, **dictionary):
-        for key, val in dictionary.items():
-            if isinstance(val, dict):
-                self.__dict__[key] = DictObj(**val)
-            else:
-                self.__dict__[key] = val
-
-    def __getitem__(self, key):
-        return self.__dict__[key]
-
-    def keys(self):
-        return self.__dict__.keys()
-
-    def get(self, key):
-        if key in self.__dict__.keys():
-            return self.__getitem__(key)
-        return None
-    
-    def items(self):
-        return self.__dict__.items()
-    
 def window_averaging(data: np.array, window_size: int) -> np.array:
     """
     Averaging the data.
@@ -33,21 +10,15 @@ def window_averaging(data: np.array, window_size: int) -> np.array:
     return data.values
 
 
-def normalise(df: pd.DataFrame, freq: float, columns: list) -> pd.DataFrame:
+def normalise(freq: np.ndarray, values: np.ndarray, fn: float) -> np.ndarray:
     """
-    Normalise the S-parameters with respect to the reference frequency.
+    Normalise the S-parameters with respect to the reference frequency (fn).
     """
-    columns = columns if columns else df.columns
+    idx = np.argmin(np.absolute(freq - fn))
+    ref = values[idx]
+    values = values - ref
 
-    for column in columns:
-        if "freq" in column:
-            continue
-
-        idx = np.argmin(np.absolute(df["freq"] - freq))
-        ref = df[column].iloc[idx]
-        df[column] = df[column] - ref
-
-    return df
+    return values
 
 def averaging(df: pd.DataFrame, columns: list, idx: float, model: str="savgol") -> pd.DataFrame:
     """

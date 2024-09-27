@@ -1,7 +1,6 @@
 import argparse
 import sys
 import matplotlib as mpl
-import numpy as np
 import string
 
 class CustomArgparseFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
@@ -25,7 +24,10 @@ class CustomArgparseFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.R
 
 
 class Publication:
-    """ Set the publication quality figure settings. """
+    """
+    Set the publication quality figure settings. This should be used to configure the figure settings
+    to the desired quality. To use this class: `Publication.set_basics()` before any plt.plot() statement.
+    """
     @staticmethod
     def set_basics():
         # font_path = r"C:\Users\cchan\Downloads\helvetica-255\Helvetica.ttf"  # Your font path goes here
