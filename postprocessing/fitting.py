@@ -141,23 +141,3 @@ def curve_fitting_for_ring(xdata: np.ndarray, ydata: np.ndarray, lambda_r: float
         params, *_ = curve_fit(ring_resonator_model_wrapper_fixed, xdata, ydata, bounds=bounds, p0=initial_guess)
 
     return params
-
-
-def ring_fit_interface(
-        df: pd.DataFrame, 
-        target_wavelength: float=1550E-09, 
-        fixed: float=None, 
-    ) -> Tuple:
-    wavelength = df["Wavelength"]
-    ydata = df["Loss [dB]"]
-    analysis = PAnalysis(wavelength, ydata, target_wavelength, cutoff=2, distance=100)
-    fsr = analysis.fsr()
-
-    xlow, xhigh = analysis.get_range_idx(range=1E-09)    
-    lambda_r = analysis.closest_resonance()
-
-    wavelength = wavelength[xlow:xhigh]
-    ydata = ydata[xlow:xhigh]
-    ydata_linear = 10**(-ydata/10)
-
-    return wavelength, ydata, ydata_linear, curve_fitting_for_ring(wavelength, ydata_linear, lambda_r, fsr, fixed)

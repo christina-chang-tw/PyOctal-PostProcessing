@@ -23,14 +23,14 @@ class PAnalysis:
         ydata (np.ndarray): The y-axis data. [dB] 
         wavelength (float): The wavelength of interest in [m].  
     """
-    def __init__(self, xdata: np.array, ydata: np.array, wavelength: float, cutoff: float=20, distance: int=100):
+    def __init__(self, xdata: np.array, ydata: np.array, wavelength: float, cutoff: float=20, distance: int=100) -> None:
         self._xdata = xdata
         self._ydata = np.absolute(ydata)
         self.wavelength = wavelength
         self.wavelength_idx = np.argmin(np.abs(xdata - wavelength))
         self._peaks = self.resonances(cutoff=cutoff, distance=distance)
 
-    def sanity_check(self, xlim: list=None, ylim: list=None):
+    def sanity_check(self, xlim: list=None, ylim: list=None) -> None:
         """
         Check your human brain sanity.
         
@@ -46,24 +46,25 @@ class PAnalysis:
         plt.show()
         
     @property
-    def xdata(self):
+    def xdata(self) -> np.ndarray:
         return self._xdata
     
     @property
-    def ydata(self):
+    def ydata(self) -> np.ndarray:
         return self._ydata
 
     @property
-    def peaks(self):
+    def peaks(self) -> np.ndarray:
         return self._peaks
 
-    def __true_peak_idx(self):
+    def __true_peak_idx(self) -> int:
         """ 
-        Get the index that is closest to the target wavelength in the peak. """
+        Get the index that is closest to the target wavelength in the peak.
+        """
         return np.argmin(np.abs(self._peaks - self.wavelength_idx))
     
     @property
-    def true_offres_idx(self):
+    def true_offres_idx(self) -> int:
         """ 
         Get the maximum power index (true resonance) that is closest to the target wavelength in the orriginal data. 
         """
@@ -73,27 +74,27 @@ class PAnalysis:
         return (self._peaks[self.__true_peak_idx()] + self._peaks[self.__true_peak_idx() - 1]) // 2
 
     @property
-    def true_res_idx(self):
+    def true_res_idx(self) -> int:
         """ 
         Get the resonance index that is closest to the target wavelength in the orriginal data. 
         """
         return self._peaks[self.__true_peak_idx()]
     
     @property
-    def true_res_wavelength(self):
+    def true_res_wavelength(self) -> float:
         """ 
         Get the resonance wavelength that is closest to the target wavelength in the orriginal data. 
         """
         return self._xdata[self.true_res_idx]
     
-    def get_3db_indices(self) -> Tuple:
+    def get_3db_indices(self) -> Tuple[int, int]:
         """
         Get the the two 3dB index closest to the resonance.
         """
         return np.argmin(np.abs(self._ydata[:self.true_res_idx] - 3))[-1], \
             np.argmin(np.abs(self._ydata[self.true_res_idx:] - 3))[0]
 
-    def get_range_idx(self, xrange: int=1E-09):
+    def get_range_idx(self, xrange: int=1E-09) -> np.ndarray:
         """
         Get the range of the data closest to the resonance peak that is closest to the target
         wavelength. Return two indices that correspond to the range which encloses one peak.
@@ -122,16 +123,25 @@ class PAnalysis:
         rmax_idx = np.argmax(self._ydata[self.true_res_idx:]) + self.true_res_idx
         min_idx0 = np.argmin(self._ydata[lmax_idx:rmax_idx])
         xdata = self._xdata - self._xdata[lmax_idx + min_idx0]
+
         return xdata
 
-    def modeff_phase(self, voltage: np.array, phase: np.array, length: float) -> np.array:
+    def modeff_phase(self, voltage: np.ndarray, phase: np.ndarray, length: float) -> np.ndarray:
         """
         Modulation efficiency Vm.
+        
+        Parameters:
+            voltage (np.ndarray): The applied voltages.
+            phase (np.ndarray): The phase of the wavelength.
+            length (float): The length of the device.
+            
+        Return:
+            np.ndarray: The modulation efficiency
         """
         return length*voltage*np.pi / phase
 
 
-    def resonances(self, cutoff: float, distance: int) -> list:
+    def resonances(self, cutoff: float, distance: int) -> np.ndarray:
         """
         Find the peaks in the spectrum.
 
@@ -140,7 +150,7 @@ class PAnalysis:
             distance (int): The minimum distance between peaks.
 
         Returns:
-            list: The indices of the peaks.
+            np.ndarray: The indices of the peaks.
         """
         peaks, _ = find_peaks(self._ydata, distance=distance)
 
@@ -148,7 +158,7 @@ class PAnalysis:
         peaks = peaks[self._ydata[peaks] - min(self._ydata) > cutoff]
         return peaks
    
-    def _peaks_idx_for_averaging(self, num: int) -> list:
+    def _peaks_idx_for_averaging(self, num: int) -> np.ndarray:
         """
         Find the peaks for averaging.
 
@@ -156,7 +166,7 @@ class PAnalysis:
             num (int): The number of peaks.
 
         Returns:
-            list: The indices of the peaks for averaging.
+            np.ndarray: The indices of the peaks for averaging.
         """
         if num >= len(self.peaks):
             return self.peaks
@@ -170,6 +180,9 @@ class PAnalysis:
         """
         Calculate the free spectral range of the resonator.
 
+        Parameters:
+            (int) Number of peaks to be included in the calculation of FSR.
+                    i.e. 2 = 1 FSR, 3 = 2 FSR.
 
         Returns:
             float: The free spectral range of the resonator.
@@ -376,10 +389,10 @@ class PAnalysis:
         Returns:
             float: The quality factor of the resonator.
         """
-        return self.closest_resonance()/self.fwhm()
+        return self.true_res_wavelength/self.fwhm()
         
     @staticmethod
-    def total_capacitance(veff: np.array, vcap: np.array, eff: np.array, cap: np.array) -> np.array:
+    def total_capacitance(veff: np.array, vcap: np.array, eff: np.array, cap: np.array) -> np.ndarray:
         """
         Calculate the total capacitance.
 
@@ -390,7 +403,7 @@ class PAnalysis:
             cap (np.array): Capacitance per length.
 
         Returns:
-            np.array: The total capacitance.
+            np.ndarray: The total capacitance.
         """
         voltages = np.concatenate((veff.flatten(), vcap.flatten()))
         voltages = np.linspace(min(voltages), max(voltages), 150)
@@ -402,7 +415,7 @@ class PAnalysis:
         return voltages, total_cap
 
     @staticmethod
-    def find_phase_shift(wavelength: np.array, df: pd.DataFrame, target: float) -> float:
+    def find_phase_shift(wavelength: np.ndarray, df: pd.DataFrame, target: float) -> np.ndarray:
         """
         Find the phase shift from the transmission spectrum.
 
@@ -412,7 +425,7 @@ class PAnalysis:
             target (float): The target wavelength.
 
         Returns:
-            float: The phase shift.
+            np.ndarray: The phase shift.
         """
         res_shift = []
         fsr = 0
@@ -433,7 +446,7 @@ class PAnalysis:
         
 
     @staticmethod
-    def get_modeff_from_dneff(wavelength: float, voltages: list, dneff: list):
+    def get_modeff_from_dneff(wavelength: float, voltages: np.ndarray, dneff: np.ndarray) -> np.ndarray:
         """
         This method calculate modulation efficiency based on the delta n
 
@@ -441,47 +454,57 @@ class PAnalysis:
         ----------
         wavelength: float
             wavelength in m
-        voltages: list
-            list of voltages in V
-        dneff: list
-            list of delta neff
+        voltages: np.ndarray
+            An array of voltages
+        dneff: np.ndarray
+            An array of change in effective index
+            
+        Returns
+            np.ndarray: The modulation efficiency fomr change in effective index.
         """
         voltages = np.real(voltages)
         return voltages, (voltages*wavelength)/(2*np.real(dneff))
     
     @staticmethod
-    def get_modeff_from_rshift(voltages: list, rshift: list, fsr: list, length: float):
+    def get_modeff_from_rshift(voltages: np.ndarray, rshift: np.ndarray, fsr: np.ndarray, length: float) -> np.ndarray:
         """
         This method calculate modulation efficiency based on the resonance shift
 
         Parameters
         ----------
-        wavelength: float
-            wavelength in m
-        voltages: list
-            list of voltages in V
-        dneff: list
-            list of delta neff
+        voltages: np.ndarray
+            An array of voltages.
+        rshift: np.ndarray
+            The resonance shift.
+        fsr: np.ndarray
+            FSR values for each voltages.
+        length: np.ndarray
+            The length of the device.
+            
+        Returns
+        -------
+        np.ndarray:
+            The modulation efficiency corresponding to different voltages
         """
         dphi_dv = np.absolute(2*np.pi*rshift/fsr)/voltages
         modeff = (length*np.pi)/dphi_dv
         return modeff
     
-    def get_phase_shift_from_rshift(rshift: list, fsr: list):
+    def get_phase_shift_from_rshift(rshift: np.ndarray, fsr: np.ndarray) -> np.ndarray:
         """
         This method calculate phase shift based on the resonance shift
 
         Parameters
         ----------
-        rshift: list
-            list of resonance shift
-        fsr: list
-            list of free spectral range
+        rshift: np.ndarray
+            An array of resonance shift.
+        fsr: np.ndarray
+            An array of free spectral range (FSR).
         """
         return 2*np.pi*rshift/fsr
 
     @staticmethod
-    def get_loss(wavelength: float, voltages: list, dk: list):
+    def get_loss(wavelength: float, voltages: np.ndarray, dk: np.ndarray) -> np.ndarray:
         """
         This method calculate modulation efficiency based on the delta n
 
@@ -489,16 +512,21 @@ class PAnalysis:
         ----------
         wavelength: float
             wavelength in m
-        voltages: list
-            list of voltages in V
-        dneff: list
-            list of delta neff
+        voltages: np.ndarray
+            An array of voltages
+        dk: np.ndarray
+            An array of the imaginary part of the effective index
+            
+        Returns
+        -------
+        np.ndarray:
+            The loss in dB/cm
         """
         voltages = np.real(voltages)
         return voltages, (40*np.pi*dk*np.log10(np.e)/(wavelength))*1e-02 # [dB/cm]
 
     @staticmethod
-    def get_modfrac(a: float, alpha: float, radius: float):
+    def get_modfrac(a: float, alpha: float, radius: float) -> float:
         """
         Get modulation fraction.
 
@@ -510,48 +538,31 @@ class PAnalysis:
             Loss per length [dB/cm]
         radius: float
             Radius of the ring [um]
+            
+        Returns
+        -------
+        float:
+            Modulation fraction
         """
         length = -20*np.log10(a)/(alpha*10**2)
         return length/(2*np.pi*radius)
 
-    def get_loss_from_a(a: list, length: float):
+    def get_loss_from_a(a: np.ndarray, length: float) -> float:
         """
         Get loss from a.
 
         Parameters
         ----------
-        a: list
+        a: np.ndarray
             List of round trip loss
+        length: float
+            The length of the device
 
-        a**2 = exp(-alpha*length)
+        Returns
+        -------
+        float:
+            The ring energy (a)
         """
         a_db = 20*np.log10(np.array(a)) # converting a to db
         alpha_db = -a_db/(10*np.log10(np.e)*length)
         return alpha_db
-
-
-def main():
-    filename = "output/Radius1_t17_3v.csv"
-    data = pd.read_csv(filename)
-    target_wavelength = 1550e-09
-    wavelength = data["Wavelength"].values
-    ydata = data["Loss [dB]"].values
-
-    analysis = PAnalysis(wavelength, ydata, target_wavelength, cutoff=10, distance=100)
-
-    print(f"Free spectral range [nm]: {np.round(analysis.fsr()*1e+09, 3)}")
-    print(f"Full width half maximum [nm]: {np.round(analysis.fwhm()*1e+09, 3)}")
-    print(f"Quality factor: {np.round(analysis.qfactor(), 3)}")
-
-    peaks = analysis.peaks
-    plt.plot(wavelength*1e+09, ydata, label="data")
-    plt.plot(wavelength[peaks]*1e+09, ydata[peaks], "x", label="peaks")
-    plt.xlabel("Wavelength [nm]")
-    plt.ylabel("Loss [dB]")
-    plt.legend()
-    plt.show()
-
-
-if __name__ == "__main__":
-    main()
-    

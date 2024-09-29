@@ -6,8 +6,10 @@ Post-processing simulation and measurement data of photonic data. It features fu
 ```
 .
 <folder>
-├── postprocessing                  # core library
+├── postprocessing           # core library
 ├── tools                    # standalone processing files are under here.
+    ├── exp                     # experimental data processing
+    ├── sim                     # simulation data processing
 <files>
 ├── requirements.txt         # contain all required python packages for this repository
 ```

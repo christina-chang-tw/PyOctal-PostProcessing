@@ -158,6 +158,9 @@ class IOMRPropertyHandler:
 
 
 class Parser:
+    """
+    A common interface to parse difference files into a pandas dataframe format.
+    """
     @staticmethod
     def __convert_freq(data):
         if "GHz" in data:
@@ -296,12 +299,3 @@ class Parser:
         if convert_to_csv:
             df.to_csv(csv_filename, index=False)
         return df
-    
-
-def main():
-    filename = Path(r"\\filestore.soton.ac.uk\users\tyc1g20\mydocuments\ring-assisted moscap\ring_mzi\investigate_coeffs\single_ring_16um_0.8.mat")
-    data = Parser.matlab_parse(filename)
-    
-
-if __name__ == "__main__":
-    main()

@@ -76,23 +76,9 @@ class Publication:
 
     @staticmethod
     def twin_x(ax):
-        ax2 = ax.twinx()
-        ax.spines['left'].set_color('C0')
-        ax.spines['right'].set_color('C1')
-        ax.yaxis.label.set_color('C0')
-        ax.yaxis.label.set_color('C0')
-        ax.tick_params(axis='y', colors='C0')
-
-        ax2.spines['left'].set_color('C0')
-        ax2.spines['right'].set_color('C1')
-        ax2.yaxis.label.set_color('C1')
-        ax2.yaxis.label.set_color('C1')
-        ax2.tick_params(axis='y', colors='C1')
-        return ax, ax2
-
-        
-    @staticmethod
-    def twin_x(ax):
+        """
+        Allow to setup a twinx graph easier.
+        """
         ax2 = ax.twinx()
         ax.spines['left'].set_color('C0')
         ax.spines['right'].set_color('C1')
