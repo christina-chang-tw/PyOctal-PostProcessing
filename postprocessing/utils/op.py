@@ -2,56 +2,53 @@ import numpy as np
 import pandas as pd
 from scipy.signal import butter, filtfilt, savgol_filter
 
-class DictObj:
-    """ Convert a dictionary to python object """
-    def __init__(self, **dictionary):
-        for key, val in dictionary.items():
-            if isinstance(val, dict):
-                self.__dict__[key] = DictObj(**val)
-            else:
-                self.__dict__[key] = val
-
-    def __getitem__(self, key):
-        return self.__dict__[key]
-
-    def keys(self):
-        return self.__dict__.keys()
-
-    def get(self, key):
-        if key in self.__dict__.keys():
-            return self.__getitem__(key)
-        return None
-    
-    def items(self):
-        return self.__dict__.items()
-    
-def window_averaging(data: np.array, window_size: int) -> np.array:
+def window_averaging(data: np.ndarray, window_size: int) -> np.ndarray:
     """
-    Averaging the data.
+    Averaging the data by using a rolling window.
+    
+    Args:
+        data (np.ndarray): The data to be averaged.
+        window_size (int): The size of the window.
+
+    Returns:
+        np.ndarray: The averaged data.
     """
     data = pd.Series(data).rolling(window=window_size, min_periods=1).mean()
     return data.values
 
 
-def normalise(df: pd.DataFrame, freq: float, columns: list) -> pd.DataFrame:
+def normalise(freq: np.ndarray, values: np.ndarray, fn: float) -> np.ndarray:
     """
-    Normalise the S-parameters with respect to the reference frequency.
+    Normalise the S-parameters with respect to the reference frequency (fn).
+    
+    Args:
+        freq (np.ndarray): The frequency array.
+        values (np.ndarray): The s parameter.
+        fn (float): The reference frequency.
+    
+    Returns:
+        np.ndarray: The normalised S-parameters.
     """
-    columns = columns if columns else df.columns
+    idx = np.argmin(np.absolute(freq - fn))
+    ref = values[idx]
+    values = values - ref
 
-    for column in columns:
-        if "freq" in column:
-            continue
+    return values
 
-        idx = np.argmin(np.absolute(df["freq"] - freq))
-        ref = df[column].iloc[idx]
-        df[column] = df[column] - ref
-
-    return df
-
-def averaging(df: pd.DataFrame, columns: list, idx: float, model: str="savgol") -> pd.DataFrame:
+def averaging(df: pd.DataFrame, columns: list, idx: int=0, model: str="savgol") -> pd.DataFrame:
     """
     Averaging the S-parameters with respect to the frequency.
+    
+    Parameters
+    ----------
+    df (pd.DataFrame):
+        The dataframe that contains the data to be averaged.
+    columns (list):
+        The column names in the dataframe that need to be averaged.
+    idx (int):
+        The row to start averaging.
+    model (str):
+        The model to be used for averaging.
     """
     columns = columns if columns else df.columns
     df2 = df.copy()

@@ -3,8 +3,8 @@ from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 
-class MZI():
-    def __init__(xdata: np.ndarray, ydata: np.ndarray, target_wavelength: float, cutoff: float = 10):
+class MZI:
+    def __init__(self, xdata: np.ndarray, ydata: np.ndarray, target_wavelength: float, cutoff: float = 10):
         """_summary_
 
         Args:

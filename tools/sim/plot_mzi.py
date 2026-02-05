@@ -29,7 +29,6 @@ def plot_mzi_from_power():
     fig.tight_layout()
     plt.show()
 
-
 def plot_mzi_from_transmission_spectrum():
     input_dir = r"C:\Users\cchan\Desktop\PyOctal-PostProcessing\2024-4-19-ring-assisted-mzi\2024-4-19-ring-assisted-mzi-csv"
     

@@ -1,3 +1,12 @@
+"""
+n_alpha.py
+
+This script is used to plot the change in refractive index and absorption coefficient for different doping levels in a semiconductor. The data is based on the following equations:
+
+\Delta n = -5.4\times 10^{-22}\Delta N_e^{1.011} - 1.53\times 10^{-18}\Delta N_h^{0.838}
+\Delta \alpha = 8.88\times 10^{-21}\Delta N_e^{1.167} + 5.84\times 10^{-20}\Delta N_h^{1.109}
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 

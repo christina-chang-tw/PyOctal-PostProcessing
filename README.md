@@ -1,9 +1,21 @@
 # PyOctal-PostProcessing
-Post-processing for PyOctal
 
-This post-processing package can help you quickly plot graphs regarding measurement results and also help interfacing with the omr file viewer to convert or perform other operations on the omr files.
+Post-processing simulation and measurement data of photonic data. It features functions such as parsers, fitting, spectrum analysis, and plotting data.
 
+## Directory Structure
+```
+.
+<folder>
+├── postprocessing           # core library
+├── tools                    # standalone processing files are under here.
+    ├── exp                     # experimental data processing
+    ├── sim                     # simulation data processing
+<files>
+├── requirements.txt         # contain all required python packages for this repository
+```
 
-```bash
-> python -m postprocessing --operation <op>
+To run the files, run them as a module:
+```python
+# example
+python -m tools.exp.heater
 ```

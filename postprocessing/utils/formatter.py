@@ -1,7 +1,6 @@
 import argparse
 import sys
 import matplotlib as mpl
-import numpy as np
 import string
 
 class CustomArgparseFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
@@ -25,7 +24,10 @@ class CustomArgparseFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.R
 
 
 class Publication:
-    """ Set the publication quality figure settings. """
+    """
+    Set the publication quality figure settings. This should be used to configure the figure settings
+    to the desired quality. To use this class: `Publication.set_basics()` before any plt.plot() statement.
+    """
     @staticmethod
     def set_basics():
         # font_path = r"C:\Users\cchan\Downloads\helvetica-255\Helvetica.ttf"  # Your font path goes here
@@ -74,23 +76,9 @@ class Publication:
 
     @staticmethod
     def twin_x(ax):
-        ax2 = ax.twinx()
-        ax.spines['left'].set_color('C0')
-        ax.spines['right'].set_color('C1')
-        ax.yaxis.label.set_color('C0')
-        ax.yaxis.label.set_color('C0')
-        ax.tick_params(axis='y', colors='C0')
-
-        ax2.spines['left'].set_color('C0')
-        ax2.spines['right'].set_color('C1')
-        ax2.yaxis.label.set_color('C1')
-        ax2.yaxis.label.set_color('C1')
-        ax2.tick_params(axis='y', colors='C1')
-        return ax, ax2
-
-        
-    @staticmethod
-    def twin_x(ax):
+        """
+        Allow to setup a twinx graph easier.
+        """
         ax2 = ax.twinx()
         ax.spines['left'].set_color('C0')
         ax.spines['right'].set_color('C1')
