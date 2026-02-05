@@ -16,63 +16,79 @@ class PAnalysis:
     This is for performing analysis based on the transmission spectrum.
 
     Parameters:
-        xdata (np.ndarray): The x-axis data. [dB]
-        ydata (np.ndarray): The y-axis data. [dB] 
-        wavelength (float): The wavelength of interest.  
+        xdata (np.ndarray): The x-axis data (m).
+        ydata (np.ndarray): The y-axis data (dB).
+        wavelength (float): The wavelength of interest in m.  
     """
     def __init__(self, xdata: np.array, ydata: np.array, wavelength: float, cutoff: float=20, distance: int=100):
-        self.xdata = xdata
-        self.ydata = np.absolute(ydata)
-        self.wavelength = wavelength
-        self.wavelength_idx = np.argmin(np.abs(self.xdata - self.wavelength))
-        self._peaks = self.resonances(cutoff=cutoff, distance=distance)
+        self._xdata = xdata
+        self._ydata = np.absolute(ydata)
+        self.target_wavelength = wavelength
+        self.target_wavelength_idx = np.argmin(np.abs(self._xdata - self.target_wavelength))
+        self._peaks_idx = self.get_resonance_indices(cutoff=cutoff, distance=distance)
+        self._peaks = self._xdata[self._peaks_idx]
+      
 
     def sanity_check(self, xlim: list=None, ylim: list=None):
         """
         Check your human brain sanity.
         """
         plt.clf()
-        plt.plot(self.xdata*1E+09, 10**(-self.ydata/10))
-        # plt.scatter(self.xdata[self._peaks]*1E+09, self.ydata[self._peaks], marker="x")
-        plt.xlabel("Wavelength [nm]")
-        plt.ylabel("Transmission [dB]")
-        # plt.xlim(xlim)
-        # plt.ylim(ylim)
+        plt.plot(self.xdata*1E+09, self.ydata)
+        plt.scatter(self.xdata[self._peaks_idx]*1E+09, self.ydata[self._peaks_idx], marker="x")
+        plt.xlabel("Wavelength (nm)")
+        plt.ylabel("Transmission (dB)")
+        plt.xlim(xlim)
+        plt.ylim(ylim)
         plt.show()
 
     @property
+    def xdata(self):
+        """ 
+        Get the x-axis data.
+        """
+        return self._xdata
+    
+    @property
+    def ydata(self):
+        """ 
+        Get the y-axis data.
+        """
+        return self._ydata
+
+    @property
+    def peaks_idx(self):
+        return self._peaks_idx
+
+    @property
     def peaks(self):
+        """ 
+        Get the peaks in the spectrum.
+        """
         return self._peaks
 
     @property
-    def target_peak_idx(self):
+    def true_resonance_idx(self):
         """ 
-        Get the index that is closest to the target wavelength in the peak. """
-        return np.argmin(np.abs(self._peaks - self.wavelength_idx))
+        Get the index that is closest to the target wavelength in the peak.
+        """
+        return self.peaks_idx[np.argmin(np.abs(self.peaks_idx - self.target_wavelength_idx))]
     
     @property
-    def target_offres_idx(self):
+    def true_offres_idx(self):
         """ 
-        Get the power maximum index that is closest to the target wavelength in the orriginal data. 
+        Get the power maximum index that is closest to the target wavelength in the original data. 
         """
-        if self.target_resonance_idx < self.wavelength_idx:
-            return (self._peaks[self.target_peak_idx] + self._peaks[self.target_peak_idx + 1]) // 2
-
-        return (self._peaks[self.target_peak_idx] + self._peaks[self.target_peak_idx - 1]) // 2
-
-    @property
-    def target_resonance_idx(self):
-        """ 
-        Get the resonance index that is closest to the target wavelength in the orriginal data. 
-        """
-        return self._peaks[self.target_peak_idx]
+        if self.target_resonance_idx < self.target_wavelength_idx:
+            return (self._peaks[self.true_resonance_idx] + self._peaks[self.true_resonance_idx + 1]) // 2
+        return (self._peaks[self.true_resonance_idx] + self._peaks[self.true_resonance_idx - 1]) // 2
     
     @property
-    def target_resonance_wavelength(self):
+    def true_resonance_wavelength(self):
         """ 
         Get the resonance wavelength that is closest to the target wavelength in the orriginal data. 
         """
-        return self.xdata[self.target_resonance_idx]
+        return self.peaks[np.argmin(np.abs(self.peaks - self.target_wavelength))]
 
     def get_range_idx(self, xrange: int=1E-09):
         """
@@ -83,32 +99,11 @@ class PAnalysis:
         Parameters:
             range (int): The range of the data to be considered. int=1 means 1nm range.
         """
-        res = self.closest_resonance()
+        res = self.true_resonance_wavelength
         idx_min = np.argmin(np.abs(self.xdata - (res - xrange/2)))
         idx_max = np.argmin(np.abs(self.xdata - (res + xrange/2)))
 
         return idx_min, idx_max
-
-    def closest_resonance(self) -> float:
-        """
-        Calculate the resonance frequency of the resonator.
-
-        Returns:
-            float: The resonance frequency closest to the target wavelength.
-        """
-        target_idx = np.argmin(np.abs(self._peaks - self.wavelength_idx))
-        return self.xdata[self._peaks[target_idx]]
-    
-    def closest_resonance_idx(self) -> float:
-        """
-        Calculate the resonance frequency of the resonator.
-
-        Returns:
-            float: The resonance frequency closest to the target wavelength.
-        """
-        target_idx = np.argmin(np.abs(self._peaks - self.wavelength_idx))
-        return self._peaks[target_idx]
-
 
     def centering(self, idx: int) -> np.ndarray:
         """
@@ -130,10 +125,10 @@ class PAnalysis:
         """
         Modulation efficiency Vm.
         """
-        return length*voltage*np.pi / phase
+        return length * voltage * np.pi / phase
 
 
-    def resonances(self, cutoff: float, distance: int) -> list:
+    def get_resonance_indices(self, cutoff: float, distance: int) -> list:
         """
         Find the peaks in the spectrum.
 
@@ -144,11 +139,11 @@ class PAnalysis:
         Returns:
             list: The indices of the peaks.
         """
-        peaks, _ = find_peaks(self.ydata, distance=distance)
+        peaks_idx, _ = find_peaks(self.ydata, distance=distance)
 
         # perform another filtering
-        peaks = peaks[self.ydata[peaks] - min(self.ydata) > cutoff]
-        return peaks
+        peaks_idx = peaks_idx[self.ydata[peaks_idx] - min(self.ydata) > cutoff]
+        return peaks_idx
    
     def _peaks_idx_for_averaging(self, num: int) -> list:
         """
@@ -160,18 +155,18 @@ class PAnalysis:
         Returns:
             list: The indices of the peaks for averaging.
         """
-        if num >= len(self.peaks):
-            return self.peaks
+        if num >= len(self.peaks_idx):
+            return self.peaks_idx
 
-        target_idx = np.argmin(np.abs(self.peaks - self.wavelength_idx))
-        peaks_for_avg = self.peaks[target_idx-num//2:target_idx+1+num//2]
+        index = np.argmin(np.abs(self.peaks_idx - self.true_resonance_idx))
+
+        peaks_for_avg = self.peaks_idx[index-num//2:index+1+num//2]
 
         return peaks_for_avg
 
     def fsr(self, num_peaks: int=3) -> float:
         """
         Calculate the free spectral range of the resonator.
-
 
         Returns:
             float: The free spectral range of the resonator.
@@ -187,7 +182,7 @@ class PAnalysis:
         for i in range(1, len(peaks_idx)):
             fsr += self.xdata[peaks_idx[i]] - self.xdata[peaks_idx[i-1]]
         
-        return fsr/(len(peaks_idx)-1)
+        return fsr / (len(peaks_idx)-1)
     
     def linewidth(self) -> float:
         """
@@ -197,32 +192,32 @@ class PAnalysis:
         Returns:
             float: The linewidth of the resonator.
         """
-        peaks = self._peaks
         xdata = self.xdata
         ydata = self.ydata
 
-        if len(peaks) > 1:
-            peaks = self._peaks_idx_for_averaging(3)
-            peak_midpoints = (peaks[:-1] + peaks[1:]) // 2
-            xdata = xdata[peak_midpoints[0]:peak_midpoints[-1]]
+        if len(self._peaks_idx) > 1:
+            peaks_idx = self._peaks_idx_for_averaging(3)
+            peak_midpoints = (peaks_idx[:-1] + peaks_idx[1:]) // 2
             ydata = ydata[peak_midpoints[0]:peak_midpoints[-1]]
             indices = np.where(ydata >= 3)[0] + peak_midpoints[0]
         else:
             indices = np.where(ydata >= 3)[0]
 
-        return xdata[indices[-1]] - xdata[indices[0]]
+        return np.absolute(self.xdata[indices[-1]] - self.xdata[indices[0]])
 
 
     @staticmethod
-    def oma(
+    def fom(
         xdata: np.array, 
         ydata0: np.array, 
         ydata1: np.array,
         target_wavelength: float,
-        normalised: bool=True
+        fom_type: str="OMA",
+        peak_distance: int=100,
+        peak_depth: int=8,
     ) -> tuple:
         """
-        Calculate the optical modulation amplitude.
+        Calculate the figure of merit.
 
         Parameters:
             xdata (np.array): The x-axis data.
@@ -233,28 +228,28 @@ class PAnalysis:
             float: The optical modulation amplitude.
         """
         # normalise before performing other operations
-        peaks0 = find_peaks(ydata0, distance=100)[0]
-        peaks0 = peaks0[ydata0[peaks0] - min(ydata0) > 8]
+        peaks0 = find_peaks(ydata0, distance=peak_distance)[0]
+        peaks0 = peaks0[ydata0[peaks0] - min(ydata0) > peak_depth]
         
-        peaks1 = find_peaks(ydata1, distance=100)[0]
-        peaks1 = peaks1[ydata1[peaks1] - min(ydata1) > 8]
-        # plt.clf()
-        # plt.plot(xdata, ydata1)
-        # plt.scatter(xdata[peaks1], ydata1[peaks1])
-        # plt.show()
+        peaks1 = find_peaks(ydata1, distance=peak_distance)[0]
+        peaks1 = peaks1[ydata1[peaks1] - min(ydata1) > peak_depth]
+
         target_idx = np.argmin(np.abs(xdata - target_wavelength))
         idx_max = peaks0[np.argmin(np.abs(peaks0 - target_idx))]
         idx_min = peaks1[np.argmin(np.abs(peaks1 - target_idx))]
 
+        if fom_type == "ER":
+            return np.absolute(ydata0 - ydata1)
+
         ydata0 = 10**(-(ydata0 - min(ydata0)) / 10)
         ydata1 = 10**(-(ydata1 - min(ydata1))/ 10)
-        oma = np.absolute(ydata0 - ydata1)
 
-        if normalised:
-            min_idx0 = np.argmin(oma[idx_min:idx_max])
-            xdata = xdata - xdata[idx_min + min_idx0]
+        if fom_type == "OMA":
+            return np.absolute(ydata0 - ydata1)
 
-        return xdata, oma
+        if fom_type == "TP":
+            return -10 * np.log10(np.absolute(ydata0 - ydata1) / 2)
+
 
     @staticmethod
     def operating_region(xdata: np.array, ydata: np.array, level: float):
@@ -284,9 +279,6 @@ class PAnalysis:
         right_or = xdata[right_indices[0]] - xdata[right_indices[-1]] if right_indices.size > 0 else 0
         left_or = xdata[left_indices[0]] - xdata[left_indices[-1]] if left_indices.size > 0 else 0
 
-        print(right_indices[0], right_indices[-1])
-        # print(left_indices[0], left_indices[-1])
-
         return np.absolute(left_or), np.absolute(right_or)
     
     @staticmethod
@@ -311,14 +303,13 @@ class PAnalysis:
         tol = 0.01
         ydata = 10**(-(self.ydata - min(self.ydata)) / 10)
 
-        peaks = self._peaks_idx_for_averaging(3)
-        peak_midpoints = (peaks[:-1] + peaks[1:]) // 2
+        peaks_idx = self._peaks_idx_for_averaging(3)
+        peak_midpoints = (peaks_idx[:-1] + peaks_idx[1:]) // 2
 
-        xdata = self.xdata[peak_midpoints[0]:peak_midpoints[-1]]
         ydata = ydata[peak_midpoints[0]:peak_midpoints[-1]]
         half_indices = np.where(np.isclose(ydata, 0.5, atol=tol))[0] + peak_midpoints[0]
 
-        fwhm = xdata[half_indices[-1]] - xdata[half_indices[0]]
+        fwhm = np.absolute(self.xdata[half_indices[-1]] - self.xdata[half_indices[0]])
 
         return fwhm
 
@@ -330,30 +321,7 @@ class PAnalysis:
         Returns:
             float: The quality factor of the resonator.
         """
-        return self.closest_resonance()/self.fwhm()
-        
-    @staticmethod
-    def total_capacitance(veff: np.array, vcap: np.array, eff: np.array, cap: np.array) -> np.array:
-        """
-        Calculate the total capacitance.
-
-        Parameters:
-            veff (np.array): Modulation efficiency voltage.
-            vcap (np.array): Capacitance voltage.
-            eff (np.array): Modulation efficiency.
-            cap (np.array): Capacitance per length.
-
-        Returns:
-            np.array: The total capacitance.
-        """
-        voltages = np.concatenate((veff.flatten(), vcap.flatten()))
-        voltages = np.linspace(min(voltages), max(voltages), 150)
-        eff_func = interp1d(veff, eff, kind='linear', fill_value="extrapolate")
-        cap_func = interp1d(vcap, cap, kind='linear', fill_value="extrapolate")
-
-        total_cap = eff_func(voltages)*cap_func(voltages)/voltages
-
-        return voltages, total_cap
+        return self.true_resonance_wavelength/self.fwhm()
 
     @staticmethod
     def find_phase_shift(wavelength: np.array, df: pd.DataFrame, target: float) -> float:
@@ -491,30 +459,3 @@ class PAnalysis:
         a_db = 20*np.log10(np.array(a)) # converting a to db
         alpha_db = -a_db/(10*np.log10(np.e)*length)
         return alpha_db
-
-
-def main():
-    filename = "output/Radius1_t17_3v.csv"
-    data = pd.read_csv(filename)
-    target_wavelength = 1550e-09
-    wavelength = data["Wavelength"].values
-    ydata = data["Loss [dB]"].values
-
-    analysis = PAnalysis(wavelength, ydata, target_wavelength, cutoff=10, distance=100)
-
-    print(f"Free spectral range [nm]: {np.round(analysis.fsr()*1e+09, 3)}")
-    print(f"Full width half maximum [nm]: {np.round(analysis.fwhm()*1e+09, 3)}")
-    print(f"Quality factor: {np.round(analysis.qfactor(), 3)}")
-
-    peaks = analysis.peaks
-    plt.plot(wavelength*1e+09, ydata, label="data")
-    plt.plot(wavelength[peaks]*1e+09, ydata[peaks], "x", label="peaks")
-    plt.xlabel("Wavelength [nm]")
-    plt.ylabel("Loss [dB]")
-    plt.legend()
-    plt.show()
-
-
-if __name__ == "__main__":
-    main()
-    

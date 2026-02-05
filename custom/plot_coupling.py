@@ -19,14 +19,14 @@ def fit_coupling_coefficient(xdata, ydata):
 
 def coupling_1var_with_cvw():
     directory = Path(r"C:\Users\tyc1g20\Downloads\txt")
-    cl = 8
-    radii = np.arange(5, 31, 1)
+    cl = np.arange(1, 21, 1)
+    radii = 10
 
     couplings = []
     gap = 250
     fig, ax = plt.subplots(1,2, figsize=(12,6))
     for r in radii:
-        filename = directory / f"14_07_2024_cs_cl{cl}um_{r}um_gap{gap}nm.txt"
+        filename = directory / f"16_07_2024_cs_cl{cl}um_{r}um_gap{gap}nm.txt"
         data = np.loadtxt(filename, delimiter=" ")
         wavelength = convert_freq_to_wavelength(data[:, 0])
         new_x, func = fit_coupling_coefficient(wavelength, data[:, 1])
@@ -49,28 +49,29 @@ def coupling_1var_with_cvw():
 
 def coupling_1var():
     directory = Path(r"C:\Users\tyc1g20\Downloads\txt")
-    cl = 8
-    radii = np.arange(5, 31, 1)
+    cls = np.arange(1, 20, 1)
+
+    r = 10
 
     couplings = []
     gap = 250
     fig, ax = plt.subplots(1,2, figsize=(12,6))
-    for r in radii:
-        filename = directory / f"14_07_2024_cs_cl{cl}um_{r}um_gap{gap}nm.txt"
+    for cl in cls:
+        filename = directory / f"16_07_2024_cs_cl{cl}um_{r}um_gap{gap}nm.txt"
         data = np.loadtxt(filename, delimiter=" ")
         wavelength = convert_freq_to_wavelength(data[:, 0])
         new_x, func = fit_coupling_coefficient(wavelength, data[:, 1])
         
         couplings = np.append(couplings, func(1.55E-06))
 
-    ax[0].plot(radii, np.sqrt(couplings), marker="o")
-    ax[1].plot(radii, np.sqrt(1-couplings), marker="o")
+    ax[0].plot(cls, np.sqrt(couplings), marker="o")
+    ax[1].plot(cls, np.sqrt(1-couplings), marker="o")
     
     ax[0].legend()
-    ax[0].set_xlabel("Radius [um]")
+    ax[0].set_xlabel("Coupling length [um]")
     ax[0].set_ylabel("Cross coupling coefficient @ 1550nm")
     ax[1].legend()
-    ax[1].set_xlabel("Radius [um]")
+    ax[1].set_xlabel("Coupling length [um]")
     ax[1].set_ylabel("Self coupling coefficient @ 1550nm")
 
 def coupling_2vars():
