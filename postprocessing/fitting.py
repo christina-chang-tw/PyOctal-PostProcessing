@@ -141,3 +141,6 @@ def curve_fitting_for_ring(xdata: np.ndarray, ydata: np.ndarray, lambda_r: float
         params, *_ = curve_fit(ring_resonator_model_wrapper_fixed, xdata, ydata, bounds=bounds, p0=initial_guess)
 
     return params
+
+
+    

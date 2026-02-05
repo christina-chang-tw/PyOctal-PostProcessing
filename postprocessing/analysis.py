@@ -556,13 +556,11 @@ class PAnalysis:
         a: np.ndarray
             List of round trip loss
         length: float
-            The length of the device
+            The length of the device in m
 
         Returns
         -------
         float:
-            The ring energy (a)
+            dB/m
         """
-        a_db = 20*np.log10(np.array(a)) # converting a to db
-        alpha_db = -a_db/(10*np.log10(np.e)*length)
-        return alpha_db
+        return -20 * np.log10(a) / length
