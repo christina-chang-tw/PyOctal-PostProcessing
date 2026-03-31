@@ -30,9 +30,8 @@ class Publication:
     """
     @staticmethod
     def set_basics():
-        # font_path = r"C:\Users\cchan\Downloads\helvetica-255\Helvetica.ttf"  # Your font path goes here
-        # mpl.font_manager.fontManager.addfont(font_path)
-        # prop = mpl.font_manager.FontProperties(fname=font_path)
+        font_path = r"C:\Fonts\helvetica-255\Helvetica.ttf"  # Your font path goes here
+        mpl.font_manager.fontManager.addfont(font_path)
 
         default = 12
         larger_font = 14

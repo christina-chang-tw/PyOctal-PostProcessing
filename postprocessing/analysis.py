@@ -26,9 +26,9 @@ class PAnalysis:
     def __init__(self, xdata: np.array, ydata: np.array, wavelength: float, cutoff: float=20, distance: int=100) -> None:
         self._xdata = xdata
         self._ydata = np.absolute(ydata)
-        self.wavelength = wavelength
-        self.wavelength_idx = np.argmin(np.abs(xdata - wavelength))
-        self._peaks = self.resonances(cutoff=cutoff, distance=distance)
+        self.target_wavelength = wavelength
+        self.target_wavelength_idx = np.argmin(np.abs(xdata - wavelength))
+        self._peak_indices = self.resonances_indices(cutoff=cutoff, distance=distance)
 
     def sanity_check(self, xlim: list=None, ylim: list=None) -> None:
         """
@@ -38,7 +38,7 @@ class PAnalysis:
         """
         plt.clf()
         plt.plot(self._xdata*1E+09, self._ydata)
-        plt.scatter(self._xdata[self._peaks]*1E+09, self._ydata[self._peaks], marker="x")
+        plt.scatter(self._xdata[self._peak_indices]*1E+09, self._ydata[self._peak_indices], marker="x")
         plt.xlabel("Wavelength [nm]")
         plt.ylabel("Transmission [dB]")
         plt.xlim(xlim)
@@ -54,45 +54,46 @@ class PAnalysis:
         return self._ydata
 
     @property
-    def peaks(self) -> np.ndarray:
-        return self._peaks
+    def peak_indices(self) -> np.ndarray:
+        return self._peak_indices
 
-    def __true_peak_idx(self) -> int:
+    def __peak_idx(self) -> int:
         """ 
         Get the index that is closest to the target wavelength in the peak.
         """
-        return np.argmin(np.abs(self._peaks - self.wavelength_idx))
+        normalised = self._peak_indices - self.target_wavelength_idx
+        return np.argmin(np.abs(normalised)) # this returns the index of the minimised term in peak_indices
     
     @property
-    def true_offres_idx(self) -> int:
+    def off_resonance_idx(self) -> int:
         """ 
         Get the maximum power index (true resonance) that is closest to the target wavelength in the orriginal data. 
         """
-        if self.true_res_idx < self.wavelength_idx:
-            return (self._peaks[self.__true_peak_idx()] + self._peaks[self.__true_peak_idx() + 1]) // 2
+        if self.resonance_idx < self.target_wavelength_idx:
+            return (self.resonance_idx + self._peak_indices[self.__peak_idx() + 1]) // 2
 
-        return (self._peaks[self.__true_peak_idx()] + self._peaks[self.__true_peak_idx() - 1]) // 2
+        return (self.resonance_idx + self._peak_indices[self.__peak_idx() - 1]) // 2
 
     @property
-    def true_res_idx(self) -> int:
+    def resonance_idx(self) -> int:
         """ 
         Get the resonance index that is closest to the target wavelength in the orriginal data. 
         """
-        return self._peaks[self.__true_peak_idx()]
+        return self._peak_indices[self.__peak_idx()]
     
     @property
-    def true_res_wavelength(self) -> float:
+    def resonance_wavelength(self) -> float:
         """ 
         Get the resonance wavelength that is closest to the target wavelength in the orriginal data. 
         """
-        return self._xdata[self.true_res_idx]
+        return self._xdata[self.resonance_idx]
     
     def get_3db_indices(self) -> Tuple[int, int]:
         """
         Get the the two 3dB index closest to the resonance.
         """
-        return np.argmin(np.abs(self._ydata[:self.true_res_idx] - 3))[-1], \
-            np.argmin(np.abs(self._ydata[self.true_res_idx:] - 3))[0]
+        return np.argmin(np.abs(self._ydata[:self.resonance_idx] - 3))[-1], \
+            np.argmin(np.abs(self._ydata[self.resonance_idx:] - 3))[0]
 
     def get_range_idx(self, xrange: int=1E-09) -> np.ndarray:
         """
@@ -103,7 +104,7 @@ class PAnalysis:
         Parameters:
             range (int): The range of the data to be considered. int=1 means 1nm range.
         """
-        res = self.true_res_wavelength
+        res = self.resonance_wavelength
         idx_min = np.argmin(np.abs(self._xdata - (res - xrange/2)))
         idx_max = np.argmin(np.abs(self._xdata - (res + xrange/2)))
 
@@ -119,8 +120,8 @@ class PAnalysis:
         Returns:
             np.ndarray: The centered x-axis data.
         """
-        lmax_idx = np.argmax(self._ydata[:self.true_res_idx])
-        rmax_idx = np.argmax(self._ydata[self.true_res_idx:]) + self.true_res_idx
+        lmax_idx = np.argmax(self._ydata[:self.resonance_idx])
+        rmax_idx = np.argmax(self._ydata[self.resonance_idx:]) + self.resonance_idx
         min_idx0 = np.argmin(self._ydata[lmax_idx:rmax_idx])
         xdata = self._xdata - self._xdata[lmax_idx + min_idx0]
 
@@ -152,7 +153,24 @@ class PAnalysis:
         Returns:
             np.ndarray: The indices of the peaks.
         """
-        peaks, _ = find_peaks(self._ydata, distance=distance)
+        peaks, _ = find_peaks(self._ydata, distance=distance) # indices of the peaks
+
+        # perform another filtering
+        peaks = peaks[self._ydata[peaks] - min(self._ydata) > cutoff]
+        return self.xdata[peaks]
+    
+    def resonances_indices(self, cutoff: float, distance: int) -> np.ndarray:
+        """
+        Find the peaks in the spectrum.
+
+        Parameters:
+            cutoff (float): The cutoff value for the peaks.
+            distance (int): The minimum distance between peaks.
+
+        Returns:
+            np.ndarray: The indices of the peaks.
+        """
+        peaks, _ = find_peaks(self._ydata, distance=distance) # indices of the peaks
 
         # perform another filtering
         peaks = peaks[self._ydata[peaks] - min(self._ydata) > cutoff]
@@ -168,11 +186,11 @@ class PAnalysis:
         Returns:
             np.ndarray: The indices of the peaks for averaging.
         """
-        if num >= len(self.peaks):
-            return self.peaks
+        if num >= len(self.peak_indices):
+            return self.peak_indices
 
-        target_idx = np.argmin(np.abs(self.peaks - self.wavelength_idx))
-        peaks_for_avg = self.peaks[target_idx-num//2:target_idx+1+num//2]
+        target_idx = np.argmin(np.abs(self.peak_indices - self.target_wavelength_idx))
+        peaks_for_avg = self.peak_indices[target_idx-num//2:target_idx+1+num//2]
 
         return peaks_for_avg
 
@@ -208,7 +226,7 @@ class PAnalysis:
         Returns:
             float: The linewidth of the resonator.
         """
-        peaks = self._peaks
+        peaks = self.peak_indices
         xdata = self._xdata
         ydata = self._ydata
 
@@ -389,7 +407,7 @@ class PAnalysis:
         Returns:
             float: The quality factor of the resonator.
         """
-        return self.true_res_wavelength/self.fwhm()
+        return self.resonance_wavelength/self.fwhm()
         
     @staticmethod
     def total_capacitance(veff: np.array, vcap: np.array, eff: np.array, cap: np.array) -> np.ndarray:
@@ -431,7 +449,7 @@ class PAnalysis:
         fsr = 0
         for _, val in df.items():
             analysis = PAnalysis(wavelength, val, target, cutoff=5)
-            res = analysis.closest_resonance()
+            res = analysis.resonance_wavelength
             fsr += analysis.fsr()
             if res_shift == []:
                 res_shift.append(0)
