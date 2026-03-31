@@ -46,9 +46,9 @@ class PAnalysis:
         plt.show()
         
     @property
-    def xdata(self) -> np.ndarray:
-        return self._xdata
-    
+    def peaks(self):
+        return self._peaks
+
     @property
     def ydata(self) -> np.ndarray:
         return self._ydata
@@ -67,7 +67,7 @@ class PAnalysis:
     @property
     def off_resonance_idx(self) -> int:
         """ 
-        Get the maximum power index (true resonance) that is closest to the target wavelength in the orriginal data. 
+        Get the power maximum index that is closest to the target wavelength in the orriginal data. 
         """
         if self.resonance_idx < self.target_wavelength_idx:
             return (self.resonance_idx + self._peak_indices[self.__peak_idx() + 1]) // 2
@@ -77,7 +77,7 @@ class PAnalysis:
     @property
     def resonance_idx(self) -> int:
         """ 
-        Get the resonance index that is closest to the target wavelength in the orriginal data. 
+        Get the power maximum index that is closest to the target wavelength in the original data. 
         """
         return self._peak_indices[self.__peak_idx()]
     
@@ -110,7 +110,28 @@ class PAnalysis:
 
         return idx_min, idx_max
 
-    def centering(self) -> np.ndarray:
+    def closest_resonance(self) -> float:
+        """
+        Calculate the resonance frequency of the resonator.
+
+        Returns:
+            float: The resonance frequency closest to the target wavelength.
+        """
+        target_idx = np.argmin(np.abs(self._peaks - self.wavelength_idx))
+        return self.xdata[self._peaks[target_idx]]
+    
+    def closest_resonance_idx(self) -> float:
+        """
+        Calculate the resonance frequency of the resonator.
+
+        Returns:
+            float: The resonance frequency closest to the target wavelength.
+        """
+        target_idx = np.argmin(np.abs(self._peaks - self.wavelength_idx))
+        return self._peaks[target_idx]
+
+
+    def centering(self, idx: int) -> np.ndarray:
         """
         Center the x-axis data with respect to the resonance frequency.
 
@@ -139,10 +160,10 @@ class PAnalysis:
         Return:
             np.ndarray: The modulation efficiency
         """
-        return length*voltage*np.pi / phase
+        return length * voltage * np.pi / phase
 
 
-    def resonances(self, cutoff: float, distance: int) -> np.ndarray:
+    def resonances(self, cutoff: float, distance: int) -> list:
         """
         Find the peaks in the spectrum.
 
@@ -173,7 +194,7 @@ class PAnalysis:
         peaks, _ = find_peaks(self._ydata, distance=distance) # indices of the peaks
 
         # perform another filtering
-        peaks = peaks[self._ydata[peaks] - min(self._ydata) > cutoff]
+        peaks = peaks[self.ydata[peaks] - min(self.ydata) > cutoff]
         return peaks
    
     def _peaks_idx_for_averaging(self, num: int) -> np.ndarray:
@@ -198,9 +219,6 @@ class PAnalysis:
         """
         Calculate the free spectral range of the resonator.
 
-        Parameters:
-            (int) Number of peaks to be included in the calculation of FSR.
-                    i.e. 2 = 1 FSR, 3 = 2 FSR.
 
         Returns:
             float: The free spectral range of the resonator.
@@ -216,7 +234,7 @@ class PAnalysis:
         for i in range(1, len(peaks_idx)):
             fsr += self._xdata[peaks_idx[i]] - self._xdata[peaks_idx[i-1]]
         
-        return fsr/(len(peaks_idx)-1)
+        return fsr / (len(peaks_idx)-1)
     
     def linewidth(self) -> float:
         """
@@ -230,30 +248,27 @@ class PAnalysis:
         xdata = self._xdata
         ydata = self._ydata
 
-        if len(peaks) > 1:
-            peaks = self._peaks_idx_for_averaging(3)
-            peak_midpoints = (peaks[:-1] + peaks[1:]) // 2
-            xdata = xdata[peak_midpoints[0]:peak_midpoints[-1]]
+        if len(self._peaks_idx) > 1:
+            peaks_idx = self._peaks_idx_for_averaging(3)
+            peak_midpoints = (peaks_idx[:-1] + peaks_idx[1:]) // 2
             ydata = ydata[peak_midpoints[0]:peak_midpoints[-1]]
             indices = np.where(ydata >= 3)[0] + peak_midpoints[0]
         else:
             indices = np.where(ydata >= 3)[0]
 
-        return xdata[indices[-1]] - xdata[indices[0]]
+        return np.absolute(self.xdata[indices[-1]] - self.xdata[indices[0]])
 
 
     @staticmethod
-    def oma(
+    def fom(
         xdata: np.array, 
         ydata0: np.array, 
         ydata1: np.array,
         target_wavelength: float,
-        normalised: bool=True,
-        distance: float=100,
-        threshold: float=8
-    ) -> np.ndarray:
+        normalised: bool=True
+    ) -> tuple:
         """
-        Calculate the optical modulation amplitude.
+        Calculate the figure of merit.
 
         Parameters:
             xdata (np.array): The x-axis data.
@@ -268,70 +283,27 @@ class PAnalysis:
             float: The optical modulation amplitude.
         """
         # normalise before performing other operations
-        # attempt to remove insertion loss difference
-        peaks0 = find_peaks(ydata0, distance=distance)[0]
-        peaks0 = peaks0[ydata0[peaks0] - min(ydata0) > threshold]
+        peaks0 = find_peaks(ydata0, distance=100)[0]
+        peaks0 = peaks0[ydata0[peaks0] - min(ydata0) > 8]
         
-        peaks1 = find_peaks(ydata1, distance=distance)[0]
-        peaks1 = peaks1[ydata1[peaks1] - min(ydata1) > threshold]
-
+        peaks1 = find_peaks(ydata1, distance=100)[0]
+        peaks1 = peaks1[ydata1[peaks1] - min(ydata1) > 8]
+        # plt.clf()
+        # plt.plot(xdata, ydata1)
+        # plt.scatter(xdata[peaks1], ydata1[peaks1])
+        # plt.show()
         target_idx = np.argmin(np.abs(xdata - target_wavelength))
         idx_max = peaks0[np.argmin(np.abs(peaks0 - target_idx))]
         idx_min = peaks1[np.argmin(np.abs(peaks1 - target_idx))]
 
-        ydata0 = db2w(-(ydata0 - min(ydata0)))
-        ydata1 = db2w(-(ydata1 - min(ydata1)))
+        ydata0 = 10**(-(ydata0 - min(ydata0)) / 10)
+        ydata1 = 10**(-(ydata1 - min(ydata1))/ 10)
         oma = np.absolute(ydata0 - ydata1)
 
-        if normalised:
-            min_idx0 = np.argmin(oma[idx_min:idx_max])
-            xdata = xdata - xdata[idx_min + min_idx0]
+        if fom_type == "TP":
+            return -10 * np.log10(np.absolute(ydata0 - ydata1) / 2)
 
-        return oma
-    
-    @staticmethod
-    def er(
-        xdata: np.ndarray,
-        ydata0: np.ndarray,
-        ydata1: np.ndarray,
-        target_wavelength: float,
-        distance: float=100,
-        threshold: float=8,
-        normalised: bool=True,
-    ) -> np.ndarray:
-        """
-        Calculate the extinction ratio.
-
-        Parameters:
-            xdata (np.array): The x-axis data.
-            ydata0 (np.array): The first y-axis data. Assume the data will be in dB form.
-            ydata1 (np.array): The second y-axis data. Assume the data will be in dB form.
-            target_wavelength (float): The target wavelength [m].
-            distance (float): The distance between peaks.
-            threshold (float): The threshold for the peaks.
-            normalised (bool): Normalise the x-axis to resonance=0.
-
-        Returns:
-            np.ndarray: Extinction ratio
-        """
-        # normalise before performing other operations
-        peaks0 = find_peaks(ydata0, distance=distance)[0]
-        peaks0 = peaks0[ydata0[peaks0] - min(ydata0) > threshold]
-        
-        peaks1 = find_peaks(ydata1, distance=distance)[0]
-        peaks1 = peaks1[ydata1[peaks1] - min(ydata1) > threshold]
-
-        target_idx = np.argmin(np.abs(xdata - target_wavelength))
-        idx_max = peaks0[np.argmin(np.abs(peaks0 - target_idx))]
-        idx_min = peaks1[np.argmin(np.abs(peaks1 - target_idx))]
-
-        er = np.absolute(ydata0 - ydata1)
-
-        if normalised:
-            min_idx0 = np.argmin(er[idx_min:idx_max])
-            xdata = xdata - xdata[idx_min + min_idx0]
-
-        return er
+        return xdata, oma
 
     @staticmethod
     def operating_region(xdata: np.array, ydata: np.array, level: float):
@@ -361,9 +333,6 @@ class PAnalysis:
         right_or = xdata[right_indices[0]] - xdata[right_indices[-1]] if right_indices.size > 0 else 0
         left_or = xdata[left_indices[0]] - xdata[left_indices[-1]] if left_indices.size > 0 else 0
 
-        print(right_indices[0], right_indices[-1])
-        # print(left_indices[0], left_indices[-1])
-
         return np.absolute(left_or), np.absolute(right_or)
     
     @staticmethod
@@ -388,14 +357,14 @@ class PAnalysis:
         tol = 0.01
         ydata = db2w(-(self._ydata - min(self._ydata)))
 
-        peaks = self._peaks_idx_for_averaging(3)
-        peak_midpoints = (peaks[:-1] + peaks[1:]) // 2
+        peaks_idx = self._peaks_idx_for_averaging(3)
+        peak_midpoints = (peaks_idx[:-1] + peaks_idx[1:]) // 2
 
-        xdata = self._xdata[peak_midpoints[0]:peak_midpoints[-1]]
+        xdata = self.xdata[peak_midpoints[0]:peak_midpoints[-1]]
         ydata = ydata[peak_midpoints[0]:peak_midpoints[-1]]
         half_indices = np.where(np.isclose(ydata, 0.5, atol=tol))[0] + peak_midpoints[0]
 
-        fwhm = xdata[half_indices[-1]] - xdata[half_indices[0]]
+        fwhm = np.absolute(self.xdata[half_indices[-1]] - self.xdata[half_indices[0]])
 
         return fwhm
 
@@ -410,7 +379,7 @@ class PAnalysis:
         return self.resonance_wavelength/self.fwhm()
         
     @staticmethod
-    def total_capacitance(veff: np.array, vcap: np.array, eff: np.array, cap: np.array) -> np.ndarray:
+    def total_capacitance(veff: np.array, vcap: np.array, eff: np.array, cap: np.array) -> np.array:
         """
         Calculate the total capacitance.
 
@@ -421,7 +390,7 @@ class PAnalysis:
             cap (np.array): Capacitance per length.
 
         Returns:
-            np.ndarray: The total capacitance.
+            np.array: The total capacitance.
         """
         voltages = np.concatenate((veff.flatten(), vcap.flatten()))
         voltages = np.linspace(min(voltages), max(voltages), 150)
@@ -573,12 +542,36 @@ class PAnalysis:
         ----------
         a: np.ndarray
             List of round trip loss
-        length: float
-            The length of the device in m
 
-        Returns
-        -------
-        float:
-            dB/m
+        a**2 = exp(-alpha*length)
         """
-        return -20 * np.log10(a) / length
+        a_db = 20*np.log10(np.array(a)) # converting a to db
+        alpha_db = -a_db/(10*np.log10(np.e)*length)
+        return alpha_db
+
+
+def main():
+    filename = "output/Radius1_t17_3v.csv"
+    data = pd.read_csv(filename)
+    target_wavelength = 1550e-09
+    wavelength = data["Wavelength"].values
+    ydata = data["Loss [dB]"].values
+
+    analysis = PAnalysis(wavelength, ydata, target_wavelength, cutoff=10, distance=100)
+
+    print(f"Free spectral range [nm]: {np.round(analysis.fsr()*1e+09, 3)}")
+    print(f"Full width half maximum [nm]: {np.round(analysis.fwhm()*1e+09, 3)}")
+    print(f"Quality factor: {np.round(analysis.qfactor(), 3)}")
+
+    peaks = analysis.peaks
+    plt.plot(wavelength*1e+09, ydata, label="data")
+    plt.plot(wavelength[peaks]*1e+09, ydata[peaks], "x", label="peaks")
+    plt.xlabel("Wavelength [nm]")
+    plt.ylabel("Loss [dB]")
+    plt.legend()
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()
+    
