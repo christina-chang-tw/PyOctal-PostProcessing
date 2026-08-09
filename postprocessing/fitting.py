@@ -8,30 +8,8 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
 from postprocessing.analysis import PAnalysis
+from postprocessing import photonics
 
-
-def rearrange_ring_data(x, y, ind: str = "a"):
-    """
-    Rearrange the data from the ring resonator and give back the appropriate self-coupling (t)
-    and ring energy field (a).
-    i.e.
-        If ind is "a", then the data is rearranged to make sure 'a' remains constant.
-        If ind is "t", then the data is rearranged to give the ring energy field.
-
-    Parameters:
-        x (np.ndarray): The x-axis data.
-        y (np.ndarray): The y-axis data.
-        ind (str, optional): The independent variable.
-
-    Returns:
-        tuple: A tuple containing the x-axis and y-axis data.
-    """
-    inds = []
-    deps = []
-    for xdata, ydata in zip(x, y):
-        inds.append
-
-    return xdata, ydata
 
 def ring_resonator_model(xdata: np.ndarray, lambda_r: float,
                     fsr: float, a: float, t: float) -> np.ndarray:
@@ -49,18 +27,11 @@ def ring_resonator_model(xdata: np.ndarray, lambda_r: float,
         np.ndarray: The calculated transmission values.
     """
     phi = 2*np.pi*(xdata - lambda_r) / fsr
-    transmission = (a**2 - 2*a*t*np.cos(phi) + t**2) / (1 - 2*a*t*np.cos(phi) + (a*t)**2)
-
-    return transmission
+    return photonics.ring_intensity(a, t, phi)
 
 def ramzi_output_intensity(xdata, lambda_r, fsr, dphi, a, t):
     phi = 2*np.pi*(xdata - lambda_r) / fsr
-    ring_ph = np.pi + phi + np.arctan2((t*a*np.sin(phi)),(1-t*a*np.cos(phi))) + np.arctan2((t*np.sin(phi)),(a-t*np.cos(phi)))
-
-    field = (t-a*np.exp(1j*phi))/(1-t*a*np.exp(1j*phi))
-    transmission = (a**2 - 2*a*t*np.cos(phi) + t**2) / (1 - 2*a*t*np.cos(phi) + (a*t)**2)
-
-    return (transmission + 1 + 2*np.abs(field)*np.cos(dphi + ring_ph))/4
+    return photonics.ramzi_output_intensity(dphi, a, t, phi)
 
 def curve_fitting_for_ramzi(xdata: np.array, ydata: np.array,
                             lambda_r: float, fsr: float, dphi: float, fixed_param: float = None) -> tuple:

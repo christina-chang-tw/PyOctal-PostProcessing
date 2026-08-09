@@ -27,13 +27,14 @@ def main():
         if ext == "xlsx":
             with pd.ExcelFile(filename) as f:
                 data = f.parse()
-        elif ext == "csv" | "txt":
+        elif ext in ("csv", "txt"):
             data = pd.read_csv(filename)
-        
+
         new_volt = np.linspace(data["Voltage"].min(), data["Voltage"].max(), 5000)
         new_power = np.linspace(data["Electrical power"].min(), data["Electrical power"].max(), 5000)
-        volt_fitting_func = interp1d(data["Voltage"], data[:, 1], kind="cubic", fill_value="extrapolate")
-        power_fitting_func = interp1d(data["Electrical power"], data[:, 1], kind="cubic", fill_value="extrapolate")
+        # NOTE: assumes an "Optical power" column, inferred from the plotted axis labels below — verify against the actual file headers.
+        volt_fitting_func = interp1d(data["Voltage"], data["Optical power"], kind="cubic", fill_value="extrapolate")
+        power_fitting_func = interp1d(data["Electrical power"], data["Optical power"], kind="cubic", fill_value="extrapolate")
         ax[0].plot(new_volt, volt_fitting_func(new_volt)*1E+03, label=f"{var}V")
         ax[1].plot(new_power, power_fitting_func(new_power)*1E+03, label=f"{var}V")
         

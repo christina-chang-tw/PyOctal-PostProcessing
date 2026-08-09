@@ -4,15 +4,9 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.patches import Circle
 
-
-def add_circles(ax):
-    circle_200mm = Circle((0, 0), radius=10, fill=False, color="red", linewidth=2)
-    circle_150mm = Circle((0, 0), radius=7.5, fill=False, color="blue", linewidth=2)
-    ax.add_patch(circle_200mm)
-    ax.add_patch(circle_150mm)
-    return ax
+from postprocessing.parser import Parser
+from postprocessing.utils.formatter import Publication
 
 
 def wafer_plots():
@@ -22,14 +16,14 @@ def wafer_plots():
     for f in files:
         fig, ax = plt.subplots(1, 1, figsize=(8, 8))
         file = folder / f
-        df = pd.read_csv(file, sep=r"\s+", skiprows=2, names=["X", "Y", "Z"])
+        df = Parser.wafer_txt_parse(file)
         df = df.dropna().reset_index()
 
         contour = ax.tricontourf(df["X"], df["Y"], df["Z"], levels=30, cmap='jet')
         ax.scatter(df["X"], df["Y"], c="black", s=12, alpha=0.6)
         fig.colorbar(contour, ax=ax, shrink=0.7, label='Rate (nm/min)')
 
-        ax = add_circles(ax)
+        ax = Publication.add_wafer_circles(ax)
 
         ax.set_xlabel("X (mm)")
         ax.set_ylabel("Y (mm)")
@@ -51,8 +45,8 @@ def wafer_polish_rate():
         total_ptime += ptime
         fig, ax = plt.subplots(1, 2, figsize=(10, 5))
 
-        df_sio2_prev = pd.read_csv(folder / files[i], sep=r"\s+", skiprows=2, names=["X", "Y", "Z"])
-        df_sio2_curr = pd.read_csv(folder / files[i+1], sep=r"\s+", skiprows=2, names=["X", "Y", "Z"])
+        df_sio2_prev = Parser.wafer_txt_parse(folder / files[i])
+        df_sio2_curr = Parser.wafer_txt_parse(folder / files[i+1])
         merged = pd.merge(df_sio2_prev, df_sio2_curr, on=["X", "Y"], how="inner", suffixes=("_prev", "_curr"))
 
         merged['Z_diff'] = merged['Z_prev'] - merged['Z_curr']
@@ -70,15 +64,17 @@ def wafer_polish_rate():
         ax[1].scatter(merged["X"], merged["Y"], c="black", s=12, alpha=0.6)
         fig.colorbar(contour, ax=ax[1], shrink=0.7, label='Rate (nm/min)')
 
-        ax[0] = add_circles(ax[0])
-        ax[1] = add_circles(ax[1])
+        ax[0] = Publication.add_wafer_circles(ax[0])
+        ax[1] = Publication.add_wafer_circles(ax[1])
 
         ax[0].set_xlabel("X (mm)")
         ax[0].set_ylabel("Y (mm)")
         ax[0].set_aspect('equal')
+        avg_diff = np.average(merged['Z_diff'])
+        med_diff = np.median(merged['Z_diff'])
         ax[0].set_title(
             f'Polished thickness period: {total_ptime-ptime:g} min. - {total_ptime:g} min. \n'
-            f'Avg: {np.average(merged['Z_diff']):.2f} nm, Median: {np.median(merged['Z_diff']):.2f} nm'
+            f'Avg: {avg_diff:.2f} nm, Median: {med_diff:.2f} nm'
         )
         ax[0].set_xlim(-10, 10)
         ax[0].set_ylim(-10, 10)
@@ -109,9 +105,9 @@ def wafer_underlayer_polish_rate():
         fig, ax = plt.subplots(1, 2, figsize=(10, 5))
 
         # target and baseline
-        df_base = pd.read_csv(folder / files_Si[i], sep=r"\s+", skiprows=2, names=["X", "Y", "Z_base"])
-        df_tar_prev = pd.read_csv(folder / files_SiO2[i], sep=r"\s+", skiprows=2, names=["X", "Y", "Z"])
-        df_tar_curr = pd.read_csv(folder / files_SiO2[i+1], sep=r"\s+", skiprows=2, names=["X", "Y", "Z"])
+        df_base = Parser.wafer_txt_parse(folder / files_Si[i]).rename(columns={"Z": "Z_base"})
+        df_tar_prev = Parser.wafer_txt_parse(folder / files_SiO2[i])
+        df_tar_curr = Parser.wafer_txt_parse(folder / files_SiO2[i+1])
         merged = pd.merge(df_tar_prev, df_tar_curr, on=["X", "Y"], how="inner", suffixes=("_prev", "_curr"))
         merged = pd.merge(merged, df_base, on=["X", "Y"], how="inner")
 
@@ -157,13 +153,12 @@ def wafer_underlayer_polish_rate():
                 textcoords='offset points'
             )
 
-        ax[0] = add_circles(ax[0])
-        ax[1] = add_circles(ax[1])
+        ax[0] = Publication.add_wafer_circles(ax[0])
+        ax[1] = Publication.add_wafer_circles(ax[1])
 
         ax[0].set_xlabel("X (mm)")
         ax[0].set_ylabel("Y (mm)")
         ax[0].set_aspect('equal')
-        # Note: Fixed quote issue inside f-string for backwards compatibility
         avg_diff = np.average(merged['Z_diff'])
         med_diff = np.median(merged['Z_diff'])
         ax[0].set_title(
@@ -198,7 +193,7 @@ def main():
 
 
     folder = Path(r"C:\Users\Christine\Downloads\Polishing")
-    df = pd.read_csv(folder / "slot1_30_min.txt", sep=r"\s+", skiprows=2, names=["X", "Y", "Z"])
+    df = Parser.wafer_txt_parse(folder / "slot1_30_min.txt")
     df = df[(df["Z"] < 150)]
     print(df.head())
     df.to_csv(f"stylus.csv", index=False)

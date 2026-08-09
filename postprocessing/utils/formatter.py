@@ -2,6 +2,7 @@ import argparse
 import sys
 import matplotlib as mpl
 import string
+from matplotlib.patches import Circle
 
 class CustomArgparseFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
     """ Display default values in the helper message. """
@@ -123,7 +124,25 @@ class Publication:
     @staticmethod
     def cm2inch(val):
         return val/2.54
-    
+
+    @staticmethod
+    def add_wafer_circles(ax, radii: tuple = (10, 7.5), colors: tuple = ("red", "blue")):
+        """
+        Overlay reference wafer-edge circles (e.g. 200mm/150mm) on a plot.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The axes to draw the circles on.
+        radii : tuple
+            Circle radii in the same units as the plotted data (default mm).
+        colors : tuple
+            Colors matching each radius.
+        """
+        for radius, color in zip(radii, colors):
+            ax.add_patch(Circle((0, 0), radius=radius, fill=False, color=color, linewidth=2))
+        return ax
+
     @property
     def dpi(self):
         return 400

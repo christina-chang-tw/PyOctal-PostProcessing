@@ -1,3 +1,8 @@
 h5py
+matplotlib
+numpy
+openpyxl
+pandas
+pywin32
 scipy
-win32com
+tqdm

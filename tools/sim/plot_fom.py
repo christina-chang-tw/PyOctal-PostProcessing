@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 
 from postprocessing.analysis import PAnalysis
+from postprocessing.fom import fom
 
 
 def main():
@@ -34,7 +35,7 @@ def main():
         # analysis.sanity_check()
 
         insertion_loss = np.absolute(df[f"{volt-1:g}V"].values - np.max(df[f"{volt-1:g}V"].values))
-        er = PAnalysis.fom(xdata=wavelength, ydata0=df[f"{volt-vpp/2:g}V"].values, ydata1=df[f"{volt+vpp/2:g}V"].values, target_wavelength=1.55E-06, fom_type="ER")
+        er = fom(ydata0=df[f"{volt-vpp/2:g}V"].values, ydata1=df[f"{volt+vpp/2:g}V"].values, fom_type="ER")
 
         ax2.plot(wavelength * 1E6, insertion_loss, color=color, linestyle="--")
         ax.plot(wavelength * 1E6, er, label=f"{volt}V", color=color)

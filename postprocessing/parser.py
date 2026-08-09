@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from pathlib import Path
 import re
 from typing import Dict
@@ -7,6 +8,22 @@ import numpy as np
 import win32com.client
 import scipy.io as sio
 import h5py
+
+
+@dataclass
+class Data3D:
+    xsize: int
+    ysize: int
+    pixel: float
+    data: np.ndarray
+
+
+@dataclass
+class Header:
+    points: int
+    x_coord: float
+    y_coord: float
+    x_res: float
 
 class IOMRFileHandler:
     """
@@ -273,6 +290,87 @@ class Parser:
                 data[path] = dset[()]
 
             return data
+
+    @staticmethod
+    def wyko_asc_parse(filepath: Path) -> Data3D:
+        """
+        Wyko profilometer .ASC surface height map parser.
+
+        Parameters:
+            filepath (Path): The path to the .ASC file.
+        """
+        data = Data3D(0, 0, 0, [0])
+        data_start_line = 0
+
+        with open(filepath, 'r') as f:
+            lines = f.readlines()
+
+        # Parse the header
+        for i, line in enumerate(lines):
+            parts = line.split()
+            if line.startswith("X Size"):
+                data.xsize = int(parts[-1])
+            elif line.startswith("Y Size"):
+                data.ysize = int(parts[-1])
+            elif line.startswith("Pixel_size"):
+                data.pixel = float(parts[-1])
+            elif line.startswith("RAW_DATA"):
+                data_start_line = i + 1
+                break
+
+        raw_array = np.loadtxt(lines[data_start_line:]) / 1E3  # nm to um
+        z_matrix = raw_array.reshape((data.xsize, data.ysize))
+        z_matrix[z_matrix > 1e20] = np.nan
+        data.data = z_matrix
+
+        return data
+
+    @staticmethod
+    def kla_stylus_parse(filepath: Path) -> tuple:
+        """
+        KLA stylus profilometer file parser.
+
+        Parameters:
+            filepath (Path): The path to the stylus data file.
+
+        Returns:
+            tuple: (Header, pd.DataFrame) containing the scan header and profile data.
+        """
+        header = Header(0, 0, 0, 0)
+
+        with open(filepath, "r") as f:
+            for i, line in enumerate(f):
+                if "Raw" in line:
+                    break
+                if i < 2:
+                    continue
+                parts = line.split()
+                if line.startswith("Points"):
+                    header.points = int(parts[-1])
+                elif line.startswith("X-Resolution"):
+                    header.x_res = float(parts[-1])
+                elif line.startswith("X-Coord"):
+                    header.x_coord = float(parts[-1])
+                elif line.startswith("Y-Coord"):
+                    header.y_coord = float(parts[-1])
+
+        data = pd.read_csv(filepath, skiprows=7, sep="\t")
+        data = data.rename(columns={data.columns[0]: "Position (um)"})
+        data.columns = data.columns.str.strip()
+
+        data["Position (um)"] = data["Position (um)"] * header.x_res
+
+        return header, data
+
+    @staticmethod
+    def wafer_txt_parse(filename: Path) -> pd.DataFrame:
+        """
+        Wafer point-map .txt parser (whitespace-delimited X, Y, Z columns).
+
+        Parameters:
+            filename (Path): The path to the wafer point-map file.
+        """
+        return pd.read_csv(filename, sep=r"\s+", skiprows=2, names=["X", "Y", "Z"])
 
     def omr_parse(filename: Path, meas: str="RXTXAvgIL", convert_to_csv: bool=False) -> pd.DataFrame:
         """

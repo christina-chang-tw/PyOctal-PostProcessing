@@ -16,6 +16,7 @@ def main():
     folder = Path(r"path/to/folder")
     vars = np.arange(5, 31, 1)
     
+    couplings = np.array([])
     fig, ax = plt.subplots(1, 2, figsize=(12,6))
     for var in vars:
         filename = folder / f"{var}.txt"

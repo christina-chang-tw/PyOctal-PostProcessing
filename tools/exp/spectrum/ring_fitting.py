@@ -39,7 +39,7 @@ def main():
             wavelength=target_wavelength
         )
         fsr = analysis.fsr(num_peaks=2)
-        wres = analysis.true_res_wavelength
+        wres = analysis.resonance_wavelength
         
         # this get the indices within the xrange of the true resonance
         # for the fitting. Make sure xrange is large enough to capture

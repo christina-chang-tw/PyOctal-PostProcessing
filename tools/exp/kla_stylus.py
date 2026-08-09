@@ -1,52 +1,18 @@
 import matplotlib.pyplot as plt
 from pathlib import Path
 import pandas as pd
-from dataclasses import dataclass
 from typing import List
 from scipy import signal
-from matplotlib.patches import Circle
 import numpy as np
 
-@dataclass
-class Header:
-    points: int
-    x_coord: float
-    y_coord: float
-    x_res: float
-
-
-def read_kla_stylus(filepath: Path):
-    header = Header(0, 0, 0, 0)
-
-    with open(filepath, "r") as f:
-        for i, line in enumerate(f):
-            if "Raw" in line:
-                break
-            if i < 2:
-                continue
-            parts = line.split() 
-            if line.startswith("Points"):
-                header.points = int(parts[-1])
-            elif line.startswith("X-Resolution"):
-                header.x_res = float(parts[-1])
-            elif line.startswith("X-Coord"):
-                header.x_coord = float(parts[-1])
-            elif line.startswith("Y-Coord"):
-                header.y_coord = float(parts[-1])
-
-    data = pd.read_csv(filepath, skiprows=7, sep="\t")
-    data = data.rename(columns={data.columns[0]: "Position (um)"})
-    data.columns = data.columns.str.strip()
-
-    data["Position (um)"] = data["Position (um)"] * header.x_res
-
-    return header, data
+from postprocessing.parser import Parser
+from postprocessing.utils.formatter import Publication
 
 
 def individual_profiles(files: List[Path], titles: List[tuple]):
     for file, pos in zip(files, titles):
         fig, ax = plt.subplots(1, 1, figsize=(7, 4))
-        header, data = read_kla_stylus(file)
+        header, data = Parser.kla_stylus_parse(file)
         normal_data = data["Normal"]
         position = data["Position (um)"]
         if header.points == 1501:
@@ -75,7 +41,7 @@ def overlap_profiles(files: List[Path]):
     fig, ax = plt.subplots(1, 1, figsize=(7, 4))
 
     for file in files:
-        header, data = read_kla_stylus(file)
+        header, data = Parser.kla_stylus_parse(file)
         normal_data = data["Normal"]
         position = data["Position (um)"]
         if header.points == 1501:
@@ -100,14 +66,14 @@ def dishing_position(files: List[Path], x: List[float], y: List[float], pos_file
     filename = [f.name for f in files]
     pos = np.column_stack([filename, x, y])
     df = pd.DataFrame(pos, columns=["Filename", "x (um)", "y (um)"])
-    df.to_csv({pos_filepath}, index=False)
+    df.to_csv(pos_filepath, index=False)
 
     x, y = np.array(x)/1E4, np.array(y)/1E4
 
     fig, ax = plt.subplots(1, 1, figsize=(6, 5))
-    ax = add_circles(ax)
+    ax = Publication.add_wafer_circles(ax)
     for i, file in enumerate(files):
-        _, data = read_kla_stylus(file)
+        _, data = Parser.kla_stylus_parse(file)
         normal_data = data["Normal"]
         normal_data = signal.savgol_filter(
             normal_data,
@@ -136,14 +102,6 @@ def dishing_position(files: List[Path], x: List[float], y: List[float], pos_file
     ax.ticklabel_format(style="plain")
     fig.tight_layout()
     fig.savefig("data.png", dpi=400)
-
-
-def add_circles(ax):
-    circle_200mm = Circle((0, 0), radius=10, fill=False, color="red", linewidth=2)
-    circle_150mm = Circle((0, 0), radius=7.5, fill=False, color="blue", linewidth=2)
-    ax.add_patch(circle_200mm)
-    ax.add_patch(circle_150mm)
-    return ax
 
 
 def main():

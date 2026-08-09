@@ -8,8 +8,7 @@ import pandas as pd
 from tqdm import tqdm
 import numpy as np
 
-def db_to_linear(db: float):
-    return 10**(-db/10)
+from postprocessing.utils.conversion import db2w
 
 def plot_mzi_from_power():
     input_dir = r"C:\Users\cchan\Desktop\PyOctal-PostProcessing\2024-4-19-ring-assisted-mzi\2024-4-19-ring-assisted-mzi-find-mixmax-g220"
@@ -65,7 +64,7 @@ def plot_mzi_from_transmission_spectrum():
     min = []
     for idx, df in enumerate(dfs):
         row = np.abs(df["Wavelength"]-target_wavelength).idxmin()
-        loss = db_to_linear(df.iloc[row,1:].values)
+        loss = db2w(-df.iloc[row,1:].values)
         # loss = -df.iloc[row,1:].values
         power = np.array(hvs)**2
         ax.plot(power, loss, label=f"{idx*0.5}V")
